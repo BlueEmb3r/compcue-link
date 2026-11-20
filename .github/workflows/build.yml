@@ -43,8 +43,87 @@ jobs:
       - run: bun build connector/main.ts --compile --minify --outfile dist/compcue-link-windows-x64.exe
       - run: node test/smoke.mjs dist/compcue-link-windows-x64.exe
         shell: bash
+      - name: Build the tray app and the Microsoft Store package
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # the Store does not take a version that starts with 0: 0.1.0 here is 1.1.0.0 there
+          $v = (Get-Content package.json -Raw | ConvertFrom-Json).version.Split('.')
+          $version = "$([int]$v[0] + 1).$($v[1]).$($v[2]).0"
+          New-Item -ItemType Directory -Force pkg\assets | Out-Null
+          Copy-Item dist\compcue-link-windows-x64.exe pkg\compcue-link.exe
+          & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /optimize /target:winexe /out:pkg\CompCueLink.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll windows\CompCueLink.cs
+          if ($LASTEXITCODE) { throw "the tray app did not compile" }
+          Copy-Item windows\assets\*.png pkg\assets\
+          $manifest = [IO.File]::ReadAllText("$PWD\windows\AppxManifest.xml").Replace('__VERSION__', $version)
+          [IO.File]::WriteAllText("$PWD\pkg\AppxManifest.xml", $manifest, (New-Object Text.UTF8Encoding $false))
+          $kit = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.*\x64\makeappx.exe" | Sort-Object FullName | Select-Object -Last 1
+          & $kit.FullName pack /d pkg /p dist\CompCueLink-store.msix /o
+          if ($LASTEXITCODE) { throw "the package was not made" }
+          "KIT=$($kit.DirectoryName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Get-Item dist\CompCueLink-store.msix | Format-List Name, Length
+      - name: Install the package like the Store would, connect with the site's button, then uninstall
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # the Store signs the real package; here a copy is signed with a throwaway certificate this machine trusts
+          $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=C0C79070-CFDD-40D9-8E94-882E2FE66BC3" -KeyUsage DigitalSignature -CertStoreLocation "Cert:\CurrentUser\My" -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+          Export-Certificate -Cert $cert -FilePath "$env:RUNNER_TEMP\test.cer" | Out-Null
+          Import-Certificate -FilePath "$env:RUNNER_TEMP\test.cer" -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null
+          Copy-Item dist\CompCueLink-store.msix "$env:RUNNER_TEMP\test.msix"
+          & "$env:KIT\signtool.exe" sign /fd SHA256 /sha1 $cert.Thumbprint "$env:RUNNER_TEMP\test.msix"
+          if ($LASTEXITCODE) { throw "signing the test copy failed" }
+          Add-AppxPackage -Path "$env:RUNNER_TEMP\test.msix"
+          $pkg = Get-AppxPackage AndrsLince.CompCueLink
+          if (-not $pkg) { throw "the package is not installed" }
+          "installed $($pkg.PackageFullName)"
+
+          # a fake League client where the app looks by itself, and a fake site
+          $F = "$env:RUNNER_TEMP\fakes"
+          $env:SMOKE_LEAGUE_DIR = "C:\Riot Games\League of Legends"
+          New-Item -ItemType Directory -Force $env:SMOKE_LEAGUE_DIR | Out-Null
+          $env:PATH += ";C:\Program Files\Git\usr\bin"
+          Start-Process node -ArgumentList "test/smoke.mjs", "--serve", "`"$F`"" -WindowStyle Hidden
+          foreach ($i in 1..40) { if (Test-Path "$F\ports.json") { break }; Start-Sleep -Milliseconds 500 }
+          $ports = Get-Content "$F\ports.json" -Raw | ConvertFrom-Json
+
+          # what the site's "Connect this PC" button does
+          Start-Process "compcue-link:setup?key=$($ports.key)&site=$([uri]::EscapeDataString($ports.siteUrl))"
+          $seen = $null
+          foreach ($i in 1..60) {
+            Start-Sleep -Seconds 1
+            try { $seen = Get-Content "$F\seen.json" -Raw | ConvertFrom-Json } catch { continue }
+            if ($seen.claimed -eq 1 -and $seen.problems.Count -eq 0) { break }
+          }
+          "--- processes"; Get-Process CompCueLink, compcue-link -ErrorAction SilentlyContinue | Format-Table Name, Id, Path
+          "--- the helper's files"
+          $dirs = @("$env:APPDATA\CompCue", "$env:LOCALAPPDATA\Packages\$($pkg.PackageFamilyName)\LocalCache\Roaming\CompCue") | Where-Object { Test-Path $_ }
+          foreach ($d in $dirs) { $d; Get-ChildItem $d | Format-Table Name, Length; if (Test-Path "$d\status.json") { Get-Content "$d\status.json" }; if (Test-Path "$d\link.log") { Get-Content "$d\link.log" } }
+          "--- seen by the fake site"; $seen | ConvertTo-Json -Depth 4 -Compress | ForEach-Object { $_.Substring(0, [Math]::Min(600, $_.Length)) }
+          try {
+            Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+            $b = [Windows.Forms.Screen]::PrimaryScreen.Bounds; $bmp = New-Object Drawing.Bitmap $b.Width, $b.Height
+            [Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [Drawing.Point]::Empty, $b.Size); $bmp.Save("$env:RUNNER_TEMP\windows-screen.png")
+          } catch { "no screenshot: $_" }
+          if (-not $seen -or $seen.claimed -ne 1 -or $seen.started -ne 0) { throw "the app did not connect with the one-time key" }
+          if ($seen.problems.Count -ne 0) { throw "these did not hold: $($seen.problems -join '; ')" }
+          if ($seen.writes -ne 0) { throw "the helper wrote to the client" }
+          if (-not (Get-Process CompCueLink -ErrorAction SilentlyContinue)) { throw "the tray app is not running" }
+          "connected through the installed package: one-time key, reads, refusals, nothing secret, zero writes"
+
+          Get-AppxPackage AndrsLince.CompCueLink | Remove-AppxPackage
+          Start-Sleep -Seconds 2
+          if (Get-Process CompCueLink, compcue-link -ErrorAction SilentlyContinue) { throw "still running after uninstall" }
+          if (Get-AppxPackage AndrsLince.CompCueLink) { throw "still installed" }
+          if (Test-Path "$env:LOCALAPPDATA\Packages\$($pkg.PackageFamilyName)") { "note: the package's data folder is still there" } else { "uninstall left nothing" }
       - uses: actions/upload-artifact@v4
         with: { name: windows, path: dist/compcue-link-windows-x64.exe }
+      # the file to upload in Partner Center (unsigned on purpose: the Store signs it)
+      - uses: actions/upload-artifact@v4
+        with: { name: windows-store, path: dist/CompCueLink-store.msix }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: windows-screenshot, path: "${{ runner.temp }}/windows-screen.png", if-no-files-found: ignore }
 
   mac:
     runs-on: macos-latest

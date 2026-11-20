@@ -4,6 +4,7 @@
  *   compcue-link                    pair on first run, then keep running
  *   --setup <key>                   pair with the one-time key from the install command (nothing to confirm)
  *   --pair-only                     pair, then exit (the installer uses it before it starts the app)
+ *   --claim-only                    with --setup: trade the key, exit 0 when this computer is paired (the Windows app)
  *   --status                        print where the running helper stands
  *   --unpair                        forget this computer's token
  *   --site <url>  --version
@@ -62,7 +63,7 @@ const setStatus = (next: Partial<typeof status>) => {
 };
 
 // ---- one helper per user: a second start leaves the first alone ----------------------------------------------
-const pairOnly = args.includes("--pair-only");
+const pairOnly = args.includes("--pair-only") || args.includes("--claim-only");
 if (!pairOnly) {
   const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch (e) { return (e as { code?: string }).code === "EPERM"; } };
   const other = Number((() => { try { return readFileSync(lockFile, "utf8"); } catch { return ""; } })());
@@ -111,6 +112,9 @@ async function pair(): Promise<string> {
       const until = Date.now() + Math.min(Number(s.expiresInMs) || 0, 15 * 60_000);
       while (Date.now() < until) {
         await sleep(2000);
+        // paired meanwhile from the site's "Connect this PC" button (the app claimed a one-time key): use that
+        const now = load();
+        if (now) { log("Paired."); return now.token; }
         const t = await post(`${site}/api/link/token`, { device: s.device });
         if (t.status === 200) {
           const j = (await t.json()) as { token?: unknown };
@@ -150,6 +154,8 @@ const deps: LinkDeps = {
 log(`version ${LINK_VERSION}, site ${site}`);
 const setupKey = arg("--setup");
 if (setupKey && !load()) await claim(setupKey);
+// the Windows app's "Connect this PC": trade the key and say whether it worked, nothing else
+if (args.includes("--claim-only")) process.exit(load() ? 0 : 1);
 if (pairOnly) { if (!load()) await pair(); process.exit(0); }
 
 // ---- updates: shortly after start and every 6 hours; applied only while League is not connected --

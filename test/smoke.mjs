@@ -22,7 +22,8 @@ const PUUID = "0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function startFakes(dir) {
-  const league = path.join(dir, "league");
+  // SMOKE_LEAGUE_DIR: put the fake client where a packaged app looks by itself (it cannot be handed LEAGUE_PATH)
+  const league = process.env.SMOKE_LEAGUE_DIR || path.join(dir, "league");
   mkdirSync(league, { recursive: true });
   execFileSync("openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", path.join(dir, "key.pem"), "-out", path.join(dir, "cert.pem"), "-days", "2", "-subj", "/CN=rclient"], { stdio: "ignore" });
   const password = "pw" + Math.random().toString(36).slice(2);

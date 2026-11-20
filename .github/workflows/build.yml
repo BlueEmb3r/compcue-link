@@ -85,6 +85,8 @@ jobs:
           COMPCUE_RELEASE_URL=http://127.0.0.1:8911 sh mac/install.sh "$KEY" "$SITE"
           S="$HOME/Library/Application Support/CompCue"
           for i in $(seq 1 40); do grep -q '"state":"connected"' "$S/status.json" 2>/dev/null && break; sleep 1; done
+          # the first champ select event follows the connection by a moment: wait for the fake site to have seen it all
+          for i in $(seq 1 20); do node -e "process.exit(require('fs').readFileSync('$F/seen.json','utf8').includes('\"problems\":[]') ? 0 : 1)" 2>/dev/null && break; sleep 1; done
           echo "--- status"; cat "$S/status.json" || true; echo; echo "--- log"; cat "$S/link.log" || true
           echo "--- seen by the fake site"; node -e "const s=require('$F/seen.json'); console.log(JSON.stringify({claimed:s.claimed, started:s.started, hello:s.hello, clientUp:s.clientUp, writes:s.writes, problems:s.problems}, null, 1)); if (s.problems.length || s.claimed !== 1 || s.started !== 0) process.exit(1)"
           test -d "$HOME/Applications/CompCue Link.app"

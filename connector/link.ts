@@ -7,11 +7,12 @@
  * Read-only by construction: the only calls it can make to the client are GETs on ALLOWED_GETS. Nothing listens
  * on this computer, the client's port and password never leave it, and while a game is being played it goes
  * quiet (only the game phase and the already-locked teams can be read). No connection to the site exists
- * while League is closed.
+ * while League is closed. Every body is cut down before it is sent (minimize): chat tokens, the game server's
+ * address and keys and anything else the site does not use stay on this computer.
  *
  * Side effects come in as `deps`, so tests run it against a fake client and a fake site (tests/link.test.ts).
  */
-import { allowedGet, allowedTopic, LINK_PROTOCOL, parseMessage, QUIET_PHASES, toLink, type FromLink, type ToLink } from "../src/shared/link.js";
+import { allowedGet, allowedTopic, LINK_PROTOCOL, minimize, parseMessage, QUIET_PHASES, toLink, type FromLink, type ToLink } from "../src/shared/link.js";
 import type { ClientReader } from "../server/live/lcu.js";
 import type { LcuEvent } from "../server/live/lcuSocket.js";
 
@@ -38,7 +39,7 @@ export type LinkEnd = "unpaired" | "update" | "stopped";
 export async function answerGet(reader: ClientReader, path: string, phase: string): Promise<{ status: number; body?: unknown }> {
   if (!allowedGet(path)) return { status: 403 };
   if (QUIET_PHASES.includes(phase) && !ALWAYS.includes(path)) return { status: 409 };
-  try { return { status: 200, body: await reader.get<unknown>(path) }; }
+  try { return { status: 200, body: minimize(path, await reader.get<unknown>(path)) }; }
   catch (e) { const s = (e as { status?: unknown })?.status; return { status: typeof s === "number" ? s : 502 }; }
 }
 
@@ -77,7 +78,7 @@ function session(token: string, client: NonNullable<Awaited<ReturnType<LinkDeps[
           if (!allowedTopic(e.uri)) return;
           if (e.uri === "/lol-gameflow/v1/gameflow-phase" && typeof e.data === "string") phase = e.data;
           else if (QUIET_PHASES.includes(phase)) return;
-          send({ t: "event", uri: e.uri, eventType: e.eventType, data: e.data });
+          send({ t: "event", uri: e.uri, eventType: e.eventType, data: minimize(e.uri, e.data) });
         }, () => { /* the event socket dropped: the liveness check below decides whether the client is gone */ });
         // the client's own lifetime: when it stops answering, tell the site and leave (no idle connection)
         check = (async () => {
@@ -95,7 +96,7 @@ function session(token: string, client: NonNullable<Awaited<ReturnType<LinkDeps[
       message(text) {
         const m = parseMessage<ToLink>(toLink, text);
         if (!m) return;
-        if (m.t === "bye") { if (m.reason === "update") { d.log(`This version is too old. Get ${m.minVersion ?? "the newest one"} from the CompCue site.`); finish("update"); } return; }
+        if (m.t === "bye") { if (m.reason === "update") { d.log("This version is too old. Get the newest one from the CompCue site."); finish("update"); } return; }
         void answerGet(client.reader, m.path, phase).then((r) => send({ t: "res", id: m.id, ...r }));
       },
       close(code) {

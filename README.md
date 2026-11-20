@@ -17,6 +17,9 @@ draft coach can give you pick and ban options live. This repository is everythin
   message that picks, bans, accepts a queue or clicks anything.
 - **It listens on nothing.** No port is opened on your computer.
 - **The client's port and password never leave your computer.**
+- **It sends only what the coach uses.** Every answer is cut down first (`minimize` in `src/shared/link.ts`): chat tokens and
+  the game server's address and keys never leave your computer.
+- **It only talks to the CompCue site over https.**
 - **It is quiet during the game.** While a game is being played it forwards only the game phase.
 - **It never touches the game process or its memory.** It uses only the League client's local HTTP API.
 

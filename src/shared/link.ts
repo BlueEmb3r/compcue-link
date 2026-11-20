@@ -39,6 +39,56 @@ export const allowedGet = (path: string): boolean => typeof path === "string" &&
 export const ALLOWED_TOPICS = ["/lol-champ-select/v1/session", "/lol-gameflow/v1/gameflow-phase", "/lol-lobby/v2/lobby"];
 export const allowedTopic = (uri: string): boolean => ALLOWED_TOPICS.includes(uri);
 
+// ---- data minimisation: what leaves the player's computer ----------------------------------------------------
+
+/**
+ * Keys that never leave the computer, wherever they appear: the client keeps chat tokens and the game server's
+ * address and keys in the same objects as the draft, and the site has no use for any of them.
+ */
+const NEVER = /^(mucJwtDto|multiUserChatJWT|multiUserChatPassword|multiUserChatId|playerCredentials|encryptionKey|observerEncryptionKey|observerServerIp|observerServerPort|serverIp|serverPort|password|gameClient|chatDetails|chatRoomName|chatRoomPassword|idToken|accessToken|entitlementsToken|summonerInternalName|accountId)$/i;
+function strip(v: unknown, depth = 0): unknown {
+  if (depth > 12 || v === null || typeof v !== "object") return v;
+  if (Array.isArray(v)) return v.map((x) => strip(x, depth + 1));
+  const out: Record<string, unknown> = {};
+  for (const [k, x] of Object.entries(v as Record<string, unknown>)) if (!NEVER.test(k)) out[k] = strip(x, depth + 1);
+  return out;
+}
+const pick = (o: unknown, keys: string[]): Record<string, unknown> => {
+  const out: Record<string, unknown> = {};
+  if (o && typeof o === "object") for (const k of keys) if (k in (o as object)) out[k] = (o as Record<string, unknown>)[k];
+  return out;
+};
+const PLAYER_KEYS = ["puuid", "championId", "gameName", "tagLine", "selectedPosition", "team"];
+/**
+ * The body of one read or event, cut down to what the site uses before it is sent. The three objects that carry
+ * more than the draft are cut to named fields (the champ select session, the lobby, the game flow session);
+ * everything loses the NEVER keys.
+ */
+export function minimize(path: string, body: unknown): unknown {
+  if (body === null || typeof body !== "object") return body;
+  const p = path.split("?")[0];
+  if (p === "/lol-champ-select/v1/session") return strip(pick(body, ["localPlayerCellId", "myTeam", "theirTeam", "actions", "bans", "timer", "isSpectating", "gameId"]));
+  if (p === "/lol-lobby/v2/lobby") {
+    const members = (body as { members?: unknown }).members;
+    return { members: Array.isArray(members) ? members.map((m) => pick(m, ["puuid"])) : [] };
+  }
+  if (p === "/lol-gameflow/v1/session") {
+    const gd = (body as { gameData?: { queue?: unknown; teamOne?: unknown; teamTwo?: unknown } }).gameData;
+    const team = (t: unknown) => (Array.isArray(t) ? t.map((x) => pick(x, PLAYER_KEYS)) : []);
+    return { gameData: { queue: pick(gd?.queue, ["id"]), teamOne: team(gd?.teamOne), teamTwo: team(gd?.teamTwo) } };
+  }
+  return strip(body);
+}
+
+/** The site this helper may talk to: https only, or plain http on this same computer (development). */
+export function siteAllowed(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.username || u.password) return false;
+    return u.protocol === "https:" || (u.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(u.hostname));
+  } catch { return false; }
+}
+
 /** While a game is being played the helper forwards nothing but the phase itself (Riot: no in-game help). */
 export const QUIET_PHASES = ["InProgress", "Reconnect"];
 

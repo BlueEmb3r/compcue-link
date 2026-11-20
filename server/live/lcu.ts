@@ -1,7 +1,7 @@
 /**
- * Read-only access to the League client's local API (LCU) and the in-game Live Client Data API.
+ * Read-only access to the League client's local API (LCU).
  *
- * Both run on 127.0.0.1 with a self-signed Riot certificate, so certificate checks are relaxed for
+ * It runs on 127.0.0.1 with a self-signed Riot certificate, so certificate checks are relaxed for
  * these loopback requests only (never for the Riot web API). We only ever send GET requests: the
  * app reads what the client already shows you and never picks, bans or clicks anything.
  */
@@ -50,9 +50,4 @@ export class Lcu implements ClientReader {
   async maybe<T>(path: string): Promise<T | null> {
     try { return await this.get<T>(path); } catch (e) { if (e instanceof HttpError && e.status === 404) return null; throw e; }
   }
-}
-
-/** In-game API (port 2999), available from the loading screen on. */
-export async function liveClientData<T = unknown>(): Promise<T | null> {
-  try { return await getJson<T>(2999, "/liveclientdata/allgamedata", undefined, 1500); } catch { return null; }
 }

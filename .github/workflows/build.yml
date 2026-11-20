@@ -5,17 +5,19 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+# least privilege: building needs to read the code and nothing else
 permissions:
-  contents: write
+  contents: read
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with: { persist-credentials: false }
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - uses: oven-sh/setup-bun@v2
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - run: npm run typecheck
       - name: Build
         run: |
@@ -26,7 +28,17 @@ jobs:
           cd dist && sha256sum compcue-link-* > SHA256SUMS
       - uses: actions/upload-artifact@v4
         with: { name: compcue-link, path: dist/ }
-      - name: Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with: { files: dist/* }
+  # only a v* tag pushed by a maintainer can write a release, and it uses GitHub's own CLI (no third-party action)
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: compcue-link, path: dist }
+      - run: gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --title "CompCue Link $TAG" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}

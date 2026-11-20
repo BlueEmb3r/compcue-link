@@ -1,12 +1,19 @@
 # Builds CompCue Link on Linux, Windows and macOS, runs the real executable against a fake League client and a
 # fake site on each (test/smoke.mjs), and on macOS also installs the app with mac/install.sh and removes it again.
-# A v* tag pushed by a maintainer turns the same files into a release.
+# A v* tag pushed by a maintainer, or a maintainer running this workflow by hand on main with "release" ticked,
+# turns the same files into a release named after the version in package.json.
 name: build
 on:
   push:
     branches: [main]
     tags: ["v*"]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Publish a release for the version in package.json"
+        type: boolean
+        default: false
 # least privilege: building needs to read the code and nothing else
 permissions:
   contents: read
@@ -116,7 +123,7 @@ jobs:
 
   # only a v* tag pushed by a maintainer can write a release, and it uses GitHub's own CLI (no third-party action)
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main')
     needs: [linux, windows, mac]
     runs-on: ubuntu-latest
     permissions:
@@ -130,12 +137,13 @@ jobs:
         run: |
           set -euo pipefail
           VERSION=$(node -p "require('./package.json').version")
-          test "v$VERSION" = "$TAG" || { echo "tag $TAG does not match version $VERSION"; exit 1; }
+          case "$REF" in refs/tags/*) test "v$VERSION" = "$TAG" || { echo "tag $TAG does not match version $VERSION"; exit 1; } ;; esac
           cp mac/install.sh mac/uninstall.sh dist/
           echo "{\"version\":\"$VERSION\"}" > dist/version.json
           cd dist && sha256sum CompCueLink-mac-*.zip compcue-link-windows-x64.exe install.sh uninstall.sh > SHA256SUMS && ls -la
-        env: { TAG: "${{ github.ref_name }}" }
-      - run: gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --title "CompCue Link $TAG" --generate-notes
+        env: { TAG: "${{ github.ref_name }}", REF: "${{ github.ref }}" }
+      - run: |
+          V="v$(node -p "require('./package.json').version")"
+          gh release create "$V" dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "CompCue Link $V" --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}

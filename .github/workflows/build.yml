@@ -1,4 +1,6 @@
-# Builds the three executables on every push, and attaches them (with checksums) to a release when a v* tag is pushed.
+# Builds CompCue Link on Linux, Windows and macOS, runs the real executable against a fake League client and a
+# fake site on each (test/smoke.mjs), and on macOS also installs the app with mac/install.sh and removes it again.
+# A v* tag pushed by a maintainer turns the same files into a release.
 name: build
 on:
   push:
@@ -9,7 +11,7 @@ on:
 permissions:
   contents: read
 jobs:
-  build:
+  linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,25 +21,118 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: npm ci --ignore-scripts
       - run: npm run typecheck
-      - name: Build
-        run: |
-          mkdir -p dist
-          bun build connector/main.ts --compile --minify --target=bun-windows-x64 --outfile dist/compcue-link-windows-x64.exe
-          bun build connector/main.ts --compile --minify --target=bun-darwin-arm64 --outfile dist/compcue-link-mac-arm64
-          bun build connector/main.ts --compile --minify --target=bun-darwin-x64 --outfile dist/compcue-link-mac-x64
-          cd dist && sha256sum compcue-link-* > SHA256SUMS
+      - run: bun build connector/main.ts --compile --minify --outfile dist/compcue-link
+      - run: node test/smoke.mjs dist/compcue-link
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: oven-sh/setup-bun@v2
+      - run: npm ci --ignore-scripts
+      - run: bun build connector/main.ts --compile --minify --outfile dist/compcue-link-windows-x64.exe
+      - run: node test/smoke.mjs dist/compcue-link-windows-x64.exe
+        shell: bash
       - uses: actions/upload-artifact@v4
-        with: { name: compcue-link, path: dist/ }
+        with: { name: windows, path: dist/compcue-link-windows-x64.exe }
+
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: oven-sh/setup-bun@v2
+      - run: npm ci --ignore-scripts
+      - name: Build the app for Apple silicon and Intel
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          mkdir -p dist
+          for ARCH in arm64 x64; do
+            if [ "$ARCH" = arm64 ]; then SWIFT=arm64; else SWIFT=x86_64; fi
+            APP="build/$ARCH/CompCue Link.app"
+            mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+            bun build connector/main.ts --compile --minify --target=bun-darwin-$ARCH --outfile "$APP/Contents/MacOS/compcue-link"
+            swiftc -O -target $SWIFT-apple-macos12.0 mac/CompCueLink.swift -o "$APP/Contents/MacOS/CompCueLink"
+            sed "s/__VERSION__/$VERSION/g" mac/Info.plist > "$APP/Contents/Info.plist"
+            # ad-hoc signature: every Mac needs one to run the code at all (it is not Apple notarization)
+            codesign --force --sign - "$APP/Contents/MacOS/compcue-link"
+            codesign --force --sign - "$APP"
+            codesign --verify --deep --strict "$APP"
+            ditto -c -k --keepParent "$APP" "dist/CompCueLink-mac-$ARCH.zip"
+          done
+          ls -la dist
+      - name: Smoke test the helper (Apple silicon, and Intel through Rosetta when it is there)
+        run: |
+          node test/smoke.mjs "build/arm64/CompCue Link.app/Contents/MacOS/compcue-link"
+          if arch -x86_64 /usr/bin/true 2>/dev/null; then node test/smoke.mjs "build/x64/CompCue Link.app/Contents/MacOS/compcue-link"; else echo "no Rosetta here: Intel build not run"; fi
+      - name: Install with mac/install.sh, check it connects, then uninstall
+        run: |
+          set -euo pipefail
+          F="$RUNNER_TEMP/fakes"
+          node test/smoke.mjs --serve "$F" &
+          for i in $(seq 1 40); do [ -f "$F/ports.json" ] && break; sleep 0.5; done
+          SITE=$(node -p "require('$F/ports.json').siteUrl"); KEY=$(node -p "require('$F/ports.json').key"); LEAGUE=$(node -p "require('$F/ports.json').league")
+          # the app is started by the system, not by this shell: give the fake client's folder to everything it starts
+          launchctl setenv LEAGUE_PATH "$LEAGUE"; launchctl setenv COMPCUE_NO_UPDATE 1; launchctl setenv COMPCUE_NO_BROWSER 1
+          (cd dist && shasum -a 256 CompCueLink-mac-*.zip > SHA256SUMS && python3 -m http.server 8911 >/dev/null 2>&1 &)
+          sleep 1
+          COMPCUE_RELEASE_URL=http://127.0.0.1:8911 sh mac/install.sh "$KEY" "$SITE"
+          S="$HOME/Library/Application Support/CompCue"
+          for i in $(seq 1 40); do grep -q '"state":"connected"' "$S/status.json" 2>/dev/null && break; sleep 1; done
+          echo "--- status"; cat "$S/status.json" || true; echo; echo "--- log"; cat "$S/link.log" || true
+          echo "--- seen by the fake site"; node -e "const s=require('$F/seen.json'); console.log(JSON.stringify({claimed:s.claimed, started:s.started, hello:s.hello, clientUp:s.clientUp, writes:s.writes, problems:s.problems}, null, 1)); if (s.problems.length || s.claimed !== 1 || s.started !== 0) process.exit(1)"
+          test -d "$HOME/Applications/CompCue Link.app"
+          pgrep -x CompCueLink >/dev/null && echo "menu bar app is running"
+          pgrep -x compcue-link >/dev/null && echo "helper is running"
+          grep -q '"state":"connected"' "$S/status.json"
+          plutil -lint "$HOME/Library/LaunchAgents/com.compcue.link.plist"
+          test "$(stat -f %Lp "$S/link.json")" = 600 && echo "token file is private"
+          screencapture -x "$RUNNER_TEMP/menubar.png" || true
+          # a tampered download must be refused and leave the installed app alone
+          echo tampered >> dist/CompCueLink-mac-arm64.zip; echo tampered >> dist/CompCueLink-mac-x64.zip
+          if COMPCUE_RELEASE_URL=http://127.0.0.1:8911 sh mac/install.sh --update; then echo "a tampered download was accepted"; exit 1; fi
+          test -d "$HOME/Applications/CompCue Link.app" && pgrep -x CompCueLink >/dev/null && echo "tampered update refused, app untouched"
+          sh mac/uninstall.sh
+          sleep 1
+          if pgrep -x CompCueLink || pgrep -x compcue-link; then echo "still running after uninstall"; exit 1; fi
+          test ! -e "$HOME/Applications/CompCue Link.app" && test ! -e "$S" && test ! -e "$HOME/Library/LaunchAgents/com.compcue.link.plist" && echo "uninstall left nothing"
+      - name: Rebuild the zips the tamper check changed
+        run: |
+          for ARCH in arm64 x64; do rm "dist/CompCueLink-mac-$ARCH.zip"; ditto -c -k --keepParent "build/$ARCH/CompCue Link.app" "dist/CompCueLink-mac-$ARCH.zip"; done
+          rm -f dist/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with: { name: mac, path: "dist/CompCueLink-mac-*.zip" }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: mac-screenshot, path: "${{ runner.temp }}/menubar.png", if-no-files-found: ignore }
+
   # only a v* tag pushed by a maintainer can write a release, and it uses GitHub's own CLI (no third-party action)
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [linux, windows, mac]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
       - uses: actions/download-artifact@v4
-        with: { name: compcue-link, path: dist }
+        with: { path: dist, merge-multiple: true, pattern: "{windows,mac}" }
+      - name: Checksums, version file and the Mac installer
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          test "v$VERSION" = "$TAG" || { echo "tag $TAG does not match version $VERSION"; exit 1; }
+          cp mac/install.sh mac/uninstall.sh dist/
+          echo "{\"version\":\"$VERSION\"}" > dist/version.json
+          cd dist && sha256sum CompCueLink-mac-*.zip compcue-link-windows-x64.exe install.sh uninstall.sh > SHA256SUMS && ls -la
+        env: { TAG: "${{ github.ref_name }}" }
       - run: gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --title "CompCue Link $TAG" --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}

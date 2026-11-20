@@ -30,9 +30,12 @@ export interface LinkDeps {
   dial(token: string, h: SiteHandlers): SiteSocket;
   sleep(ms: number): Promise<void>;
   log(line: string): void;
+  /** where the helper stands, for the menu bar app and `--status` */
+  status?(state: LinkState): void;
   platform: string;
 }
 
+export type LinkState = "pairing" | "waiting" | "connecting" | "connected" | "offline" | "update";
 export type LinkEnd = "unpaired" | "update" | "stopped";
 
 /** One answer to a `get`, as the helper decides it. Exported for the allowlist tests. */
@@ -51,10 +54,12 @@ export async function runLink(token: string, d: LinkDeps, stop: { now: boolean }
   let backoff = 1000;
   while (!stop.now) {
     const client = await d.findClient().catch(() => null);
-    if (!client) { await d.sleep(3000); continue; }
+    if (!client) { d.status?.("waiting"); await d.sleep(3000); continue; }
     d.log("League client found. Connecting to CompCue.");
+    d.status?.("connecting");
     const end = await session(token, client, d, stop);
-    if (end === "unpaired" || end === "update") return end;
+    if (end === "unpaired" || end === "update") { d.status?.(end === "update" ? "update" : "pairing"); return end; }
+    d.status?.(end === "site-closed" ? "offline" : "waiting");
     if (end === "ok") backoff = 1000; else backoff = Math.min(backoff * 2, 60_000);
     if (!stop.now) await d.sleep(end === "client-closed" ? 1000 : backoff);
   }
@@ -74,6 +79,7 @@ function session(token: string, client: NonNullable<Awaited<ReturnType<LinkDeps[
         send({ t: "hello", v: LINK_PROTOCOL, version: LINK_VERSION, platform: d.platform });
         send({ t: "client", up: true, via: client.reader.via === "process" ? "process" : "lockfile" });
         d.log("Connected. You can go back to the CompCue page.");
+        d.status?.("connected");
         events = client.events((e) => {
           if (!allowedTopic(e.uri)) return;
           if (e.uri === "/lol-gameflow/v1/gameflow-phase" && typeof e.data === "string") phase = e.data;

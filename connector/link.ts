@@ -17,7 +17,7 @@ import { allowedGet, allowedTopic, GAME_PHASE, minimizeGame, LINK_BEAT_MS, LINK_
 import type { ClientReader } from "../server/live/lcu.js";
 import type { LcuEvent } from "../server/live/lcuSocket.js";
 
-export const LINK_VERSION = "0.4.0";
+export const LINK_VERSION = "0.4.1";
 
 /** Reads allowed in every phase (the phase itself, and the session that names the locked teams at game start). */
 const ALWAYS = ["/lol-gameflow/v1/gameflow-phase", "/lol-gameflow/v1/session"];
@@ -35,7 +35,17 @@ export interface LinkDeps {
   log(line: string): void;
   /** where the helper stands, for the menu bar app and `--status` */
   status?(state: LinkState): void;
+  /** the League client's phase each time it is read (the updater waits for an idle one) */
+  phase?(phase: string): void;
   platform: string;
+}
+
+/** Phases an update must never interrupt: a queue about to pop, a champ select, a game. */
+export const UPDATE_BUSY = ["Matchmaking", "ReadyCheck", "ChampSelect", "GameStart", "InProgress", "Reconnect"];
+/** May the helper replace and restart itself now? Yes with no League client; with one, only once its phase is known and idle. */
+export function mayUpdate(state: LinkState | "stopped", phase: string | null): boolean {
+  if (state === "waiting" || state === "pairing") return true;
+  return state === "connected" && phase !== null && !UPDATE_BUSY.includes(phase);
 }
 
 export type LinkState = "pairing" | "waiting" | "connecting" | "connected" | "offline" | "update";
@@ -100,7 +110,7 @@ function session(token: string, client: NonNullable<Awaited<ReturnType<LinkDeps[
       events = client.events((e) => {
         if (!up) { up = true; tries = 0; if (eventsUp !== true) { eventsUp = true; tellClient(); } }
         if (!allowedTopic(e.uri)) return;
-        if (e.uri === "/lol-gameflow/v1/gameflow-phase" && typeof e.data === "string") phase = e.data;
+        if (e.uri === "/lol-gameflow/v1/gameflow-phase" && typeof e.data === "string") { phase = e.data; d.phase?.(phase); }
         else if (QUIET_PHASES.includes(phase)) return;
         send({ t: "event", uri: e.uri, eventType: e.eventType, data: minimize(e.uri, e.data) });
       }, () => {
@@ -124,7 +134,7 @@ function session(token: string, client: NonNullable<Awaited<ReturnType<LinkDeps[
             await d.sleep(5000);
             if (done) return;
             const r = await answerGet(client.reader, "/lol-gameflow/v1/gameflow-phase", "None");
-            if (r.status === 200 && typeof r.body === "string") phase = r.body;
+            if (r.status === 200 && typeof r.body === "string") { phase = r.body; d.phase?.(phase); }
             else if (r.status === 502) { send({ t: "client", up: false }); d.log("League client closed."); return finish("client-closed"); }
           }
           if (stop.now) finish("ok");

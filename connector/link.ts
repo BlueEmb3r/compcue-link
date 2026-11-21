@@ -12,23 +12,25 @@
  *
  * Side effects come in as `deps`, so tests run it against a fake client and a fake site (tests/link.test.ts).
  */
-import { allowedGet, allowedTopic, LINK_PROTOCOL, minimize, parseMessage, QUIET_PHASES, toLink, type FromLink, type ToLink } from "../src/shared/link.js";
+import { allowedGet, allowedTopic, LINK_BEAT_MS, LINK_PING, LINK_PONG, LINK_PONG_LATE_MS, LINK_PROTOCOL, minimize, parseMessage, QUIET_PHASES, toLink, type FromLink, type ToLink } from "../src/shared/link.js";
 import type { ClientReader } from "../server/live/lcu.js";
 import type { LcuEvent } from "../server/live/lcuSocket.js";
 
-export const LINK_VERSION = "0.2.1";
+export const LINK_VERSION = "0.3.0";
 
 /** Reads allowed in every phase (the phase itself, and the session that names the locked teams at game start). */
 const ALWAYS = ["/lol-gameflow/v1/gameflow-phase", "/lol-gameflow/v1/session"];
 
 export interface SiteSocket { send(text: string): void; close(): void }
-export interface SiteHandlers { open(): void; message(text: string): void; close(code: number): void }
+export interface SiteHandlers { open(): void; message(text: string): void; close(code: number, reason?: string): void }
 export interface LinkDeps {
   /** the running League client, or null (found again on every call) */
-  findClient(): Promise<{ reader: ClientReader; events(on: (e: LcuEvent) => void, down: () => void): { close(): void } } | null>;
+  findClient(): Promise<{ reader: ClientReader; events(on: (e: LcuEvent) => void, down: () => void, up?: () => void): { close(): void } } | null>;
   /** open the socket to the site with this token; `status` 401 on close means the token no longer works */
   dial(token: string, h: SiteHandlers): SiteSocket;
   sleep(ms: number): Promise<void>;
+  /** the clock (tests move it by hand) */
+  now?(): number;
   log(line: string): void;
   /** where the helper stands, for the menu bar app and `--status` */
   status?(state: LinkState): void;
@@ -64,34 +66,51 @@ export async function runLink(token: string, d: LinkDeps, stop: { now: boolean }
     if (end === "unpaired" || end === "update") { d.status?.(end === "update" ? "update" : "pairing"); return end; }
     d.status?.(end === "site-closed" ? "offline" : "waiting");
     // the site restarting (a new version going out) is normal: come back quickly, never wait more than 15 s
-    if (end === "ok") backoff = 1000; else backoff = Math.min(backoff * 2, 15_000);
+    if (end === "ok" || end === "silent") backoff = 1000; else backoff = Math.min(backoff * 2, 15_000);
     if (!stop.now) await d.sleep(end === "client-closed" ? 1000 : backoff + Math.floor(Math.random() * 500));
   }
   return "stopped";
 }
 
-type SessionEnd = "unpaired" | "update" | "client-closed" | "site-closed" | "ok";
+type SessionEnd = "unpaired" | "update" | "client-closed" | "site-closed" | "silent" | "ok";
 
 function session(token: string, client: NonNullable<Awaited<ReturnType<LinkDeps["findClient"]>>>, d: LinkDeps, stop: { now: boolean }): Promise<SessionEnd> {
+  const now = () => d.now?.() ?? Date.now();
   return new Promise((resolve) => {
-    let phase = "None", done = false, opened = false, events: { close(): void } | null = null, check: Promise<void> | null = null;
-    const finish = (end: SessionEnd) => { if (done) return; done = true; events?.close(); try { site.close(); } catch { /* already closed */ } resolve(end); };
+    let phase = "None", done = false, opened = false, events: { close(): void } | null = null;
+    // heartbeat: a pong proves the site's own code still holds this socket (see LINK_PING in src/shared/link.ts)
+    let openedAt = 0, lastPong = 0, pongs = 0, eventsUp: boolean | undefined;
+    const finish = (end: SessionEnd) => { if (done) return; done = true; events?.close(); events = null; try { site.close(); } catch { /* already closed */ } resolve(end); };
     const send = (m: FromLink) => { if (!done) site.send(JSON.stringify(m)); };
+    const via = client.reader.via === "process" ? "process" : "lockfile";
+    const tellClient = () => send({ t: "client", up: true, via, ...(eventsUp !== undefined ? { events: eventsUp } : {}) });
+    /** the client's event socket: opened again when it drops (the client restarting its socket, a wake from sleep), 2 s, 5 s, then every 10 s */
+    const openEvents = (tries = 0) => {
+      if (done) return;
+      let up = false;
+      events = client.events((e) => {
+        if (!up) { up = true; tries = 0; if (eventsUp !== true) { eventsUp = true; tellClient(); } }
+        if (!allowedTopic(e.uri)) return;
+        if (e.uri === "/lol-gameflow/v1/gameflow-phase" && typeof e.data === "string") phase = e.data;
+        else if (QUIET_PHASES.includes(phase)) return;
+        send({ t: "event", uri: e.uri, eventType: e.eventType, data: minimize(e.uri, e.data) });
+      }, () => {
+        if (done) return;
+        if (eventsUp !== false) { eventsUp = false; d.log("League client events stopped. Reading it directly until they come back."); tellClient(); }
+        events = null;
+        void d.sleep(tries === 0 ? 2000 : tries === 1 ? 5000 : 10_000).then(() => { if (!done && !events) openEvents(tries + 1); });
+      }, () => { up = true; tries = 0; if (eventsUp !== true) { const was = eventsUp; eventsUp = true; if (was === false) d.log("League client events are back."); tellClient(); } });
+    };
     const site: SiteSocket = d.dial(token, {
       open() {
-        opened = true;
-        send({ t: "hello", v: LINK_PROTOCOL, version: LINK_VERSION, platform: d.platform });
-        send({ t: "client", up: true, via: client.reader.via === "process" ? "process" : "lockfile" });
+        opened = true; openedAt = now();
+        send({ t: "hello", v: LINK_PROTOCOL, version: LINK_VERSION, platform: d.platform, beat: LINK_BEAT_MS });
+        tellClient();
         d.log("Connected. You can go back to the CompCue page.");
         d.status?.("connected");
-        events = client.events((e) => {
-          if (!allowedTopic(e.uri)) return;
-          if (e.uri === "/lol-gameflow/v1/gameflow-phase" && typeof e.data === "string") phase = e.data;
-          else if (QUIET_PHASES.includes(phase)) return;
-          send({ t: "event", uri: e.uri, eventType: e.eventType, data: minimize(e.uri, e.data) });
-        }, () => { /* the event socket dropped: the liveness check below decides whether the client is gone */ });
+        openEvents();
         // the client's own lifetime: when it stops answering, tell the site and leave (no idle connection)
-        check = (async () => {
+        void (async () => {
           while (!done && !stop.now) {
             await d.sleep(5000);
             if (done) return;
@@ -101,15 +120,30 @@ function session(token: string, client: NonNullable<Awaited<ReturnType<LinkDeps[
           }
           if (stop.now) finish("ok");
         })();
-        void check;
+        // the heartbeat: ping every LINK_BEAT_MS; once the site has answered one, a site that stops answering is gone
+        void (async () => {
+          let warned = false;
+          while (!done && !stop.now) {
+            site.send(LINK_PING);
+            await d.sleep(LINK_BEAT_MS);
+            if (done) return;
+            const since = now() - (lastPong || openedAt);
+            if (pongs > 0 && since > LINK_PONG_LATE_MS) { d.log(`No answer from CompCue for ${Math.round(since / 1000)} s. Connecting again.`); return finish("silent"); }
+            if (!pongs && !warned && since > LINK_PONG_LATE_MS) { warned = true; d.log("This CompCue site does not answer heartbeats (an older version). Staying connected."); }
+          }
+        })();
       },
       message(text) {
+        if (text === LINK_PONG) { lastPong = now(); pongs++; return; }
         const m = parseMessage<ToLink>(toLink, text);
         if (!m) return;
+        if (m.t === "pong") { lastPong = now(); pongs++; return; }
         if (m.t === "bye") { if (m.reason === "update") { d.log("This version is too old. Get the newest one from the CompCue site."); finish("update"); } return; }
         void answerGet(client.reader, m.path, phase).then((r) => send({ t: "res", id: m.id, ...r }));
       },
-      close(code) {
+      close(code, reason) {
+        const lasted = opened ? ` after ${Math.round((now() - openedAt) / 1000)} s` : "";
+        if (!done) d.log(`Connection to CompCue ${opened ? "closed" : "failed"} (${code}${reason ? ` ${reason}` : ""})${lasted}.`);
         if (code === 401 || code === 4001) { d.log("This computer was removed on the CompCue site. Pair it again."); return finish("unpaired"); }
         finish(opened ? "ok" : "site-closed");
       },

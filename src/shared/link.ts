@@ -3,8 +3,14 @@
  *
  * The helper finds the League client (server/live/lockfile.ts), reads it on 127.0.0.1 (lcu.ts, lcuSocket.ts)
  * and holds ONE outbound WebSocket to the site. Nothing listens on the player's machine. Over that socket:
- *   helper -> site   hello, client (League open or closed), event (a client event), res (answer to a get)
- *   site -> helper   get (read one allowlisted path), bye
+ *   helper -> site   hello, client (League open or closed), event (a client event), res (answer to a get), ping
+ *   site -> helper   get (read one allowlisted path), bye, pong
+ *
+ * Heartbeat: the helper sends LINK_PING every LINK_BEAT_MS and the site answers LINK_PONG. Cloudflare answers
+ * WebSocket protocol pings at its edge, so those keep coming back even when the server behind the socket is gone
+ * (a redeploy); the text ping has to reach the site's own code (hosted: the Durable Object's auto-response, which
+ * does not wake it), so a missing pong means the site lost this socket and the helper dials again. The site drops
+ * a helper that announced a beat (hello.beat) and has been silent for LINK_SILENT_MS.
  *
  * This file is the whole contract, pure and shared by both ends:
  * - ALLOWED_GETS / ALLOWED_TOPICS: everything the helper will ever read from the client. It is enforced
@@ -16,6 +22,14 @@
 import { z } from "zod";
 
 export const LINK_PROTOCOL = 1;
+/** The heartbeat, exact strings (the hosted Durable Object answers it with setWebSocketAutoResponse, which matches text exactly). */
+export const LINK_PING = '{"t":"ping"}';
+export const LINK_PONG = '{"t":"pong"}';
+/** How often the helper pings; it reconnects when no pong came for LINK_PONG_LATE_MS (after it has seen one). */
+export const LINK_BEAT_MS = 15_000;
+export const LINK_PONG_LATE_MS = 40_000;
+/** The site drops a beating helper it has not heard from for this long. */
+export const LINK_SILENT_MS = 50_000;
 /** Largest message either end accepts (a champ select session is about 10 KB, a match history page under 400 KB). */
 export const LINK_MAX_BYTES = 1024 * 1024;
 
@@ -93,8 +107,10 @@ export function siteAllowed(url: string): boolean {
 export const QUIET_PHASES = ["InProgress", "Reconnect"];
 
 export const fromLink = z.discriminatedUnion("t", [
-  z.object({ t: z.literal("hello"), v: z.number().int(), version: z.string().max(40), platform: z.string().max(20) }),
-  z.object({ t: z.literal("client"), up: z.boolean(), via: z.enum(["lockfile", "process"]).optional() }),
+  z.object({ t: z.literal("hello"), v: z.number().int(), version: z.string().max(40), platform: z.string().max(20), beat: z.number().int().min(1000).max(600_000).optional() }),
+  // events: whether the client's event socket is up on the helper's side (false: the site falls back to reading)
+  z.object({ t: z.literal("client"), up: z.boolean(), via: z.enum(["lockfile", "process"]).optional(), events: z.boolean().optional() }),
+  z.object({ t: z.literal("ping") }),
   z.object({ t: z.literal("event"), uri: z.string().max(200), eventType: z.string().max(20), data: z.unknown() }),
   z.object({ t: z.literal("res"), id: z.number().int(), status: z.number().int(), body: z.unknown().optional() }),
 ]);
@@ -103,6 +119,7 @@ export type FromLink = z.infer<typeof fromLink>;
 export const toLink = z.discriminatedUnion("t", [
   z.object({ t: z.literal("get"), id: z.number().int(), path: z.string().max(200) }),
   z.object({ t: z.literal("bye"), reason: z.string().max(200), minVersion: z.string().max(40).optional() }),
+  z.object({ t: z.literal("pong") }),
 ]);
 export type ToLink = z.infer<typeof toLink>;
 

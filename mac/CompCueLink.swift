@@ -153,7 +153,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             try? fm.removeItem(at: agentPlist)
         } else {
             let exe = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/CompCueLink").path
-            let plist: [String: Any] = ["Label": "com.compcue.link", "ProgramArguments": [exe], "RunAtLoad": true, "ProcessType": "Interactive", "LimitLoadToSessionType": "Aqua"]
+            let plist: [String: Any] = ["Label": "com.compcue.link", "ProgramArguments": [exe], "RunAtLoad": true, "KeepAlive": ["SuccessfulExit": false], "ProcessType": "Interactive", "LimitLoadToSessionType": "Aqua"]
             try? fm.createDirectory(at: agentPlist.deletingLastPathComponent(), withIntermediateDirectories: true)
             if let d = try? PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0) { try? d.write(to: agentPlist) }
         }

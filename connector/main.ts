@@ -136,7 +136,7 @@ const deps: LinkDeps = {
     if (!creds) return null;
     return {
       reader: new Lcu(creds),
-      events(on, down) { const s = new LcuSocket(creds, on, down); s.open(); return { close: () => s.close() }; },
+      events(on, down, up) { const s = new LcuSocket(creds, on, () => down(), up); s.open(); return { close: () => s.close() }; },
     };
   },
   dial(token, h) {
@@ -147,13 +147,14 @@ const deps: LinkDeps = {
     ws.on("pong", () => { heard = Date.now(); });
     ws.on("open", () => {
       heard = Date.now();
-      beat = setInterval(() => { if (Date.now() - heard > 45_000) ws.terminate(); else { try { ws.ping(); } catch { ws.terminate(); } } }, 15_000);
+      beat = setInterval(() => { if (Date.now() - heard > 45_000) { why = "no answer to pings"; ws.terminate(); } else { try { ws.ping(); } catch { ws.terminate(); } } }, 15_000);
       h.open();
     });
     ws.on("message", (raw, binary) => { heard = Date.now(); if (!binary) h.message(String(raw)); });
-    ws.on("unexpected-response", (_req, res) => { refused = res.statusCode ?? 0; ws.terminate(); });
-    ws.on("close", (code) => { clearInterval(beat); h.close(refused === 401 ? 401 : code); });
-    ws.on("error", () => { try { ws.terminate(); } catch { /* gone */ } });
+    let why = "";
+    ws.on("unexpected-response", (_req, res) => { refused = res.statusCode ?? 0; why = `HTTP ${refused}`; ws.terminate(); });
+    ws.on("close", (code, reason) => { clearInterval(beat); h.close(refused === 401 ? 401 : code, why || String(reason ?? "")); });
+    ws.on("error", (e) => { why ||= String((e as Error)?.message ?? e).slice(0, 120); try { ws.terminate(); } catch { /* gone */ } });
     return { send: (t) => { if (ws.readyState === ws.OPEN) ws.send(t); }, close: () => ws.close() };
   },
 };

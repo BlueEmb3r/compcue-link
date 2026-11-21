@@ -72,6 +72,7 @@ if [ "$UPDATE" = 0 ] || [ -f "$AGENT" ]; then
   <key>Label</key><string>$LABEL</string>
   <key>ProgramArguments</key><array><string>$APP/Contents/MacOS/CompCueLink</string></array>
   <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
   <key>ProcessType</key><string>Interactive</string>
   <key>LimitLoadToSessionType</key><string>Aqua</string>
 </dict>

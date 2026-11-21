@@ -3,6 +3,7 @@
  *
  * Releases live on GitHub (BlueEmb3r/compcue-link). Each one carries version.json; the helper reads it every half hour
  * from that fixed address, never from the CompCue site, so the site cannot push code to a player's machine.
+ * The site may say "a newer version is out" (a version number, on connect): that only makes the helper look here sooner.
  * On a Mac the update is the release's own installer run again with --update: it checks the download against the
  * release's SHA256SUMS, swaps the app and starts it. The token and settings are kept.
  */

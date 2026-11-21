@@ -4,7 +4,7 @@
  * The helper finds the League client (server/live/lockfile.ts), reads it on 127.0.0.1 (lcu.ts, lcuSocket.ts)
  * and holds ONE outbound WebSocket to the site. Nothing listens on the player's machine. Over that socket:
  *   helper -> site   hello, client (League open or closed), event (a client event), res (answer to a get), ping
- *   site -> helper   get (read one allowlisted path), game (read the scoreboard during a game), bye, pong
+ *   site -> helper   get (read one allowlisted path), game (read the scoreboard during a game), bye, pong, latest (a newer helper is out)
  *
  * Heartbeat: the helper sends LINK_PING every LINK_BEAT_MS and the site answers LINK_PONG. Cloudflare answers
  * WebSocket protocol pings at its edge, so those keep coming back even when the server behind the socket is gone
@@ -142,6 +142,8 @@ export const toLink = z.discriminatedUnion("t", [
   z.object({ t: z.literal("pong") }),
   // read the scoreboard of the game in progress (no path: the helper reads one fixed thing); answered with `res`
   z.object({ t: z.literal("game"), id: z.number().int() }),
+  // a hint only: "a newer helper is out". The helper then looks at its own fixed release address; the site never sends code or a link
+  z.object({ t: z.literal("latest"), version: z.string().regex(/^\d+\.\d+\.\d+$/) }),
 ]);
 export type ToLink = z.infer<typeof toLink>;
 

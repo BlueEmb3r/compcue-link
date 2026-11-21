@@ -16,7 +16,7 @@ import { allowedGet, allowedTopic, LINK_PROTOCOL, minimize, parseMessage, QUIET_
 import type { ClientReader } from "../server/live/lcu.js";
 import type { LcuEvent } from "../server/live/lcuSocket.js";
 
-export const LINK_VERSION = "0.1.0";
+export const LINK_VERSION = "0.2.0";
 
 /** Reads allowed in every phase (the phase itself, and the session that names the locked teams at game start). */
 const ALWAYS = ["/lol-gameflow/v1/gameflow-phase", "/lol-gameflow/v1/session"];
@@ -51,17 +51,21 @@ export async function answerGet(reader: ClientReader, path: string, phase: strin
  * or `stop` is set.
  */
 export async function runLink(token: string, d: LinkDeps, stop: { now: boolean } = { now: false }): Promise<LinkEnd> {
-  let backoff = 1000;
+  let backoff = 1000, refused = 0;
   while (!stop.now) {
     const client = await d.findClient().catch(() => null);
     if (!client) { d.status?.("waiting"); await d.sleep(3000); continue; }
     d.log("League client found. Connecting to CompCue.");
     d.status?.("connecting");
     const end = await session(token, client, d, stop);
+    // a site that is restarting can refuse a token once: forget it only when it refuses twice in a row
+    if (end === "unpaired" && ++refused < 2) { d.log("The site did not accept this computer. Trying once more."); await d.sleep(5000); continue; }
+    if (end !== "unpaired") refused = 0;
     if (end === "unpaired" || end === "update") { d.status?.(end === "update" ? "update" : "pairing"); return end; }
     d.status?.(end === "site-closed" ? "offline" : "waiting");
-    if (end === "ok") backoff = 1000; else backoff = Math.min(backoff * 2, 60_000);
-    if (!stop.now) await d.sleep(end === "client-closed" ? 1000 : backoff);
+    // the site restarting (a new version going out) is normal: come back quickly, never wait more than 15 s
+    if (end === "ok") backoff = 1000; else backoff = Math.min(backoff * 2, 15_000);
+    if (!stop.now) await d.sleep(end === "client-closed" ? 1000 : backoff + Math.floor(Math.random() * 500));
   }
   return "stopped";
 }

@@ -142,10 +142,17 @@ const deps: LinkDeps = {
   dial(token, h) {
     const ws = new WebSocket(`${site.replace(/^http/, "ws")}/api/link/ws`, { headers: { Authorization: `Bearer ${token}` }, maxPayload: LINK_MAX_BYTES, handshakeTimeout: 10_000 });
     let refused = 0;
-    ws.on("open", () => h.open());
-    ws.on("message", (raw, binary) => { if (!binary) h.message(String(raw)); });
+    // a restarted site can leave this socket half open (no close ever arrives): ping, and drop it when nothing answers
+    let heard = Date.now(), beat: ReturnType<typeof setInterval> | undefined;
+    ws.on("pong", () => { heard = Date.now(); });
+    ws.on("open", () => {
+      heard = Date.now();
+      beat = setInterval(() => { if (Date.now() - heard > 45_000) ws.terminate(); else { try { ws.ping(); } catch { ws.terminate(); } } }, 15_000);
+      h.open();
+    });
+    ws.on("message", (raw, binary) => { heard = Date.now(); if (!binary) h.message(String(raw)); });
     ws.on("unexpected-response", (_req, res) => { refused = res.statusCode ?? 0; ws.terminate(); });
-    ws.on("close", (code) => h.close(refused === 401 ? 401 : code));
+    ws.on("close", (code) => { clearInterval(beat); h.close(refused === 401 ? 401 : code); });
     ws.on("error", () => { try { ws.terminate(); } catch { /* gone */ } });
     return { send: (t) => { if (ws.readyState === ws.OPEN) ws.send(t); }, close: () => ws.close() };
   },

@@ -23,7 +23,7 @@ import { Lcu } from "../server/live/lcu.js";
 import { LcuSocket } from "../server/live/lcuSocket.js";
 import { findClient } from "../server/live/lockfile.js";
 import { LINK_MAX_BYTES, normalizeCode, siteAllowed } from "../src/shared/link.js";
-import { LINK_VERSION, runLink, type LinkDeps, type LinkState } from "./link.js";
+import { LINK_VERSION, mayUpdate, runLink, type LinkDeps, type LinkState } from "./link.js";
 import { checkForUpdate, runMacUpdate } from "./update.js";
 
 const args = process.argv.slice(2);
@@ -128,9 +128,12 @@ async function pair(): Promise<string> {
   }
 }
 
+let leaguePhase: string | null = null;
 const deps: LinkDeps = {
   platform: process.platform, sleep, log,
-  status: (state) => { if (state !== status.state) setStatus({ state }); },
+  // a new connection knows nothing about the client's phase until its first read (within 5 s)
+  status: (state) => { if (state !== status.state) { if (state === "connected") leaguePhase = null; setStatus({ state }); } },
+  phase: (p) => { leaguePhase = p; },
   async findClient() {
     const creds = await findClient();
     if (!creds) return null;
@@ -167,12 +170,13 @@ if (setupKey && !load()) await claim(setupKey);
 if (args.includes("--claim-only")) process.exit(load() ? 0 : 1);
 if (pairOnly) { if (!load()) await pair(); process.exit(0); }
 
-// ---- updates: shortly after start and every 6 hours; applied only while League is not connected --
-// A newer version found while a game is on waits and is retried every 15 minutes, so it is applied as soon as the player is idle.
+// ---- updates: shortly after start and every 30 minutes; applied when League is closed or idle ------------------
+// Never during a queue, a champ select or a game (mayUpdate): a newer version found then waits and is tried again
+// every 2 minutes, so it goes in as soon as the player is back in the client.
 if (process.env.COMPCUE_NO_UPDATE !== "1") {
   let pending: string | null = null;
   const apply = () => {
-    if (!pending || status.state === "connected") return;
+    if (!pending || !mayUpdate(status.state, leaguePhase)) return;
     if (runMacUpdate(log)) log("Updating now. CompCue Link restarts by itself.");
   };
   const check = async () => {
@@ -184,8 +188,8 @@ if (process.env.COMPCUE_NO_UPDATE !== "1") {
     apply();
   };
   setTimeout(check, 20_000).unref();
-  setInterval(check, 6 * 3600_000).unref();
-  setInterval(apply, 15 * 60_000).unref();
+  setInterval(check, 30 * 60_000).unref();
+  setInterval(apply, 2 * 60_000).unref();
 }
 
 for (;;) {

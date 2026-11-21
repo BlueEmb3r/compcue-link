@@ -22,7 +22,7 @@ import WebSocket from "ws";
 import { Lcu } from "../server/live/lcu.js";
 import { LcuSocket } from "../server/live/lcuSocket.js";
 import { findClient } from "../server/live/lockfile.js";
-import { LINK_MAX_BYTES, normalizeCode, siteAllowed } from "../src/shared/link.js";
+import { LINK_MAX_BYTES, normalizeCode, olderThan, siteAllowed } from "../src/shared/link.js";
 import { LINK_VERSION, mayUpdate, runLink, type LinkDeps, type LinkState } from "./link.js";
 import { checkForUpdate, runMacUpdate } from "./update.js";
 
@@ -129,11 +129,13 @@ async function pair(): Promise<string> {
 }
 
 let leaguePhase: string | null = null;
+let updateHint: (version: string) => void = () => {};
 const deps: LinkDeps = {
   platform: process.platform, sleep, log,
   // a new connection knows nothing about the client's phase until its first read (within 5 s)
   status: (state) => { if (state !== status.state) { if (state === "connected") leaguePhase = null; setStatus({ state }); } },
   phase: (p) => { leaguePhase = p; },
+  latest: (v) => updateHint(v),
   async findClient() {
     const creds = await findClient();
     if (!creds) return null;
@@ -170,11 +172,14 @@ if (setupKey && !load()) await claim(setupKey);
 if (args.includes("--claim-only")) process.exit(load() ? 0 : 1);
 if (pairOnly) { if (!load()) await pair(); process.exit(0); }
 
-// ---- updates: shortly after start and every 30 minutes; applied when League is closed or idle ------------------
+// ---- updates: shortly after start, every 30 minutes, and at once when the site says a newer version is out --------
+// The site's word is only a hint (the version number): the helper still reads the release from its own fixed address
+// and the installer checks the download, so the site cannot send code here. A hinted release that is not up yet
+// (the site can go out minutes before the release) is looked for every 2 minutes for an hour.
 // Never during a queue, a champ select or a game (mayUpdate): a newer version found then waits and is tried again
 // every 2 minutes, so it goes in as soon as the player is back in the client.
 if (process.env.COMPCUE_NO_UPDATE !== "1") {
-  let pending: string | null = null;
+  let pending: string | null = null, hinted: { version: string; until: number } | null = null;
   const apply = () => {
     if (!pending || !mayUpdate(status.state, leaguePhase)) return;
     if (runMacUpdate(log)) log("Updating now. CompCue Link restarts by itself.");
@@ -189,7 +194,15 @@ if (process.env.COMPCUE_NO_UPDATE !== "1") {
   };
   setTimeout(check, 20_000).unref();
   setInterval(check, 30 * 60_000).unref();
-  setInterval(apply, 2 * 60_000).unref();
+  setInterval(() => {
+    if (hinted && (Date.now() > hinted.until || (pending && !olderThan(pending, hinted.version)))) hinted = null;
+    if (hinted) void check().then(apply); else apply();
+  }, 2 * 60_000).unref();
+  updateHint = (v) => {
+    if (!olderThan(LINK_VERSION, v) || (pending && !olderThan(pending, v)) || hinted?.version === v) return;
+    hinted = { version: v, until: Date.now() + 3600_000 };
+    void check();
+  };
 }
 
 for (;;) {

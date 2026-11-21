@@ -17,7 +17,7 @@ import { allowedGet, allowedTopic, GAME_PHASE, minimizeGame, LINK_BEAT_MS, LINK_
 import type { ClientReader } from "../server/live/lcu.js";
 import type { LcuEvent } from "../server/live/lcuSocket.js";
 
-export const LINK_VERSION = "0.4.1";
+export const LINK_VERSION = "0.4.2";
 
 /** Reads allowed in every phase (the phase itself, and the session that names the locked teams at game start). */
 const ALWAYS = ["/lol-gameflow/v1/gameflow-phase", "/lol-gameflow/v1/session"];
@@ -37,6 +37,8 @@ export interface LinkDeps {
   status?(state: LinkState): void;
   /** the League client's phase each time it is read (the updater waits for an idle one) */
   phase?(phase: string): void;
+  /** the site says a newer helper is out (a hint: the updater checks the release address itself) */
+  latest?(version: string): void;
   platform: string;
 }
 
@@ -158,6 +160,7 @@ function session(token: string, client: NonNullable<Awaited<ReturnType<LinkDeps[
         if (!m) return;
         if (m.t === "pong") { lastPong = now(); pongs++; return; }
         if (m.t === "bye") { if (m.reason === "update") { d.log("This version is too old. Get the newest one from the CompCue site."); finish("update"); } return; }
+        if (m.t === "latest") { d.latest?.(m.version); return; }
         if (m.t === "game") { void answerGame(client.reader, phase).then((r) => send({ t: "res", id: m.id, ...r })); return; }
         void answerGet(client.reader, m.path, phase).then((r) => send({ t: "res", id: m.id, ...r }));
       },

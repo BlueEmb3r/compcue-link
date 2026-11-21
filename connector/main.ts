@@ -166,16 +166,24 @@ if (args.includes("--claim-only")) process.exit(load() ? 0 : 1);
 if (pairOnly) { if (!load()) await pair(); process.exit(0); }
 
 // ---- updates: shortly after start and every 6 hours; applied only while League is not connected --
+// A newer version found while a game is on waits and is retried every 15 minutes, so it is applied as soon as the player is idle.
 if (process.env.COMPCUE_NO_UPDATE !== "1") {
+  let pending: string | null = null;
+  const apply = () => {
+    if (!pending || status.state === "connected") return;
+    if (runMacUpdate(log)) log("Updating now. CompCue Link restarts by itself.");
+  };
   const check = async () => {
     const latest = await checkForUpdate(LINK_VERSION);
     if (!latest) return;
-    log(`Version ${latest} is out.`);
+    if (latest !== pending) log(`Version ${latest} is out.`);
+    pending = latest;
     setStatus({ update: latest });
-    if (status.state !== "connected" && runMacUpdate(log)) log("Updating now. CompCue Link restarts by itself.");
+    apply();
   };
   setTimeout(check, 20_000).unref();
   setInterval(check, 6 * 3600_000).unref();
+  setInterval(apply, 15 * 60_000).unref();
 }
 
 for (;;) {

@@ -182,6 +182,11 @@ jobs:
           plutil -lint "$HOME/Library/LaunchAgents/com.compcue.link.plist"
           test "$(stat -f %Lp "$S/link.json")" = 600 && echo "token file is private"
           screencapture -x "$RUNNER_TEMP/menubar.png" || true
+          # a good update replaces the app, restarts it, and it connects again with the same pairing
+          COMPCUE_RELEASE_URL=http://127.0.0.1:8911 sh mac/install.sh --update
+          sleep 2
+          for i in $(seq 1 40); do grep -q '"state":"connected"' "$S/status.json" 2>/dev/null && pgrep -x CompCueLink >/dev/null && break; sleep 1; done
+          pgrep -x CompCueLink >/dev/null && grep -q '"state":"connected"' "$S/status.json" && echo "update applied, app running and connected"
           # a tampered download must be refused and leave the installed app alone
           echo tampered >> dist/CompCueLink-mac-arm64.zip; echo tampered >> dist/CompCueLink-mac-x64.zip
           if COMPCUE_RELEASE_URL=http://127.0.0.1:8911 sh mac/install.sh --update; then echo "a tampered download was accepted"; exit 1; fi

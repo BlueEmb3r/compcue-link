@@ -275,6 +275,8 @@ sealed class Tray : ApplicationContext
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(Item(Words.T("Start with Windows…", "Iniciar con Windows…"), delegate { Open("ms-settings:startupapps"); }));
         menu.Items.Add(Item(Words.T("Show log", "Ver registro"), delegate { ShowLog(); }));
+        if (update != null)
+            menu.Items.Add(Item(Words.T("Version " + update + " is out: get it in Microsoft Store", "Versión " + update + " disponible: obtenla en Microsoft Store"), delegate { Open("ms-windows-store://pdp/?productid=9P94STX43TBX"); }));
         if (version != null)
         {
             ToolStripMenuItem v = new ToolStripMenuItem(Words.T("Version ", "Versión ") + version); v.Enabled = false; menu.Items.Add(v);

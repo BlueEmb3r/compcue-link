@@ -167,7 +167,8 @@ jobs:
           # the app is started by the system, not by this shell: give the fake client's folder to everything it starts
           launchctl setenv LEAGUE_PATH "$LEAGUE"; launchctl setenv COMPCUE_NO_UPDATE 1; launchctl setenv COMPCUE_NO_BROWSER 1
           (cd dist && shasum -a 256 CompCueLink-mac-*.zip > SHA256SUMS && python3 -m http.server 8911 >/dev/null 2>&1 &)
-          sleep 1
+          # wait until the local release server answers (a fixed 1 s was too short on a slow runner)
+          for i in $(seq 1 40); do curl -fsS -o /dev/null http://127.0.0.1:8911/SHA256SUMS && break; sleep 0.5; done
           COMPCUE_RELEASE_URL=http://127.0.0.1:8911 sh mac/install.sh "$KEY" "$SITE"
           S="$HOME/Library/Application Support/CompCue"
           for i in $(seq 1 40); do grep -q '"state":"connected"' "$S/status.json" 2>/dev/null && break; sleep 1; done

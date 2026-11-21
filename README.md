@@ -20,7 +20,10 @@ draft coach can give you pick and ban options live. This repository is everythin
 - **It sends only what the coach uses.** Every answer is cut down first (`minimize` in `src/shared/link.ts`): chat tokens and
   the game server's address and keys never leave your computer.
 - **It only talks to the CompCue site over https.**
-- **It is quiet during the game.** While a game is being played it forwards only the game phase.
+- **During a game it reads one thing, and only when the site asks: the scoreboard.** The champion, side, level and
+  items of the ten players (what you see with Tab), from the game's own local API on your computer, for your own
+  build options (`minimizeGame` in `src/shared/link.ts`). No names, no scores, no gold. From the League client it
+  still forwards only the game phase.
 - **It never touches the game process or its memory.** It uses only the League client's local HTTP API.
 
 ## Use

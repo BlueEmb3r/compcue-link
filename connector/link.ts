@@ -6,17 +6,18 @@
  *
  * Read-only by construction: the only calls it can make to the client are GETs on ALLOWED_GETS. Nothing listens
  * on this computer, the client's port and password never leave it, and while a game is being played it goes
- * quiet (only the game phase and the already-locked teams can be read). No connection to the site exists
+ * quiet (only the game phase and the already-locked teams can be read), except for one read the site may ask
+ * for: the scoreboard (champion, side, level and items of the ten players), for the player's own build options. No connection to the site exists
  * while League is closed. Every body is cut down before it is sent (minimize): chat tokens, the game server's
  * address and keys and anything else the site does not use stay on this computer.
  *
  * Side effects come in as `deps`, so tests run it against a fake client and a fake site (tests/link.test.ts).
  */
-import { allowedGet, allowedTopic, LINK_BEAT_MS, LINK_PING, LINK_PONG, LINK_PONG_LATE_MS, LINK_PROTOCOL, minimize, parseMessage, QUIET_PHASES, toLink, type FromLink, type ToLink } from "../src/shared/link.js";
+import { allowedGet, allowedTopic, GAME_PHASE, minimizeGame, LINK_BEAT_MS, LINK_PING, LINK_PONG, LINK_PONG_LATE_MS, LINK_PROTOCOL, minimize, parseMessage, QUIET_PHASES, toLink, type FromLink, type ToLink } from "../src/shared/link.js";
 import type { ClientReader } from "../server/live/lcu.js";
 import type { LcuEvent } from "../server/live/lcuSocket.js";
 
-export const LINK_VERSION = "0.3.0";
+export const LINK_VERSION = "0.4.0";
 
 /** Reads allowed in every phase (the phase itself, and the session that names the locked teams at game start). */
 const ALWAYS = ["/lol-gameflow/v1/gameflow-phase", "/lol-gameflow/v1/session"];
@@ -46,6 +47,14 @@ export async function answerGet(reader: ClientReader, path: string, phase: strin
   if (QUIET_PHASES.includes(phase) && !ALWAYS.includes(path)) return { status: 409 };
   try { return { status: 200, body: minimize(path, await reader.get<unknown>(path)) }; }
   catch (e) { const s = (e as { status?: unknown })?.status; return { status: typeof s === "number" ? s : 502 }; }
+}
+
+/** One answer to a `game`: the scoreboard, only while a game is being played, cut down before it leaves. */
+export async function answerGame(reader: ClientReader, phase: string): Promise<{ status: number; body?: unknown }> {
+  if (phase !== GAME_PHASE) return { status: 409 };
+  if (!reader.game) return { status: 501 };
+  const body = minimizeGame(await reader.game().catch(() => null));
+  return body ? { status: 200, body } : { status: 404 };
 }
 
 /**
@@ -104,7 +113,7 @@ function session(token: string, client: NonNullable<Awaited<ReturnType<LinkDeps[
     const site: SiteSocket = d.dial(token, {
       open() {
         opened = true; openedAt = now();
-        send({ t: "hello", v: LINK_PROTOCOL, version: LINK_VERSION, platform: d.platform, beat: LINK_BEAT_MS });
+        send({ t: "hello", v: LINK_PROTOCOL, version: LINK_VERSION, platform: d.platform, beat: LINK_BEAT_MS, ...(client.reader.game ? { game: true } : {}) });
         tellClient();
         d.log("Connected. You can go back to the CompCue page.");
         d.status?.("connected");
@@ -139,6 +148,7 @@ function session(token: string, client: NonNullable<Awaited<ReturnType<LinkDeps[
         if (!m) return;
         if (m.t === "pong") { lastPong = now(); pongs++; return; }
         if (m.t === "bye") { if (m.reason === "update") { d.log("This version is too old. Get the newest one from the CompCue site."); finish("update"); } return; }
+        if (m.t === "game") { void answerGame(client.reader, phase).then((r) => send({ t: "res", id: m.id, ...r })); return; }
         void answerGet(client.reader, m.path, phase).then((r) => send({ t: "res", id: m.id, ...r }));
       },
       close(code, reason) {

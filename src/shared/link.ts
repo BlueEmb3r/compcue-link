@@ -4,7 +4,7 @@
  * The helper finds the League client (server/live/lockfile.ts), reads it on 127.0.0.1 (lcu.ts, lcuSocket.ts)
  * and holds ONE outbound WebSocket to the site. Nothing listens on the player's machine. Over that socket:
  *   helper -> site   hello, client (League open or closed), event (a client event), res (answer to a get), ping
- *   site -> helper   get (read one allowlisted path), bye, pong
+ *   site -> helper   get (read one allowlisted path), game (read the scoreboard during a game), bye, pong
  *
  * Heartbeat: the helper sends LINK_PING every LINK_BEAT_MS and the site answers LINK_PONG. Cloudflare answers
  * WebSocket protocol pings at its edge, so those keep coming back even when the server behind the socket is gone
@@ -103,11 +103,31 @@ export function siteAllowed(url: string): boolean {
   } catch { return false; }
 }
 
-/** While a game is being played the helper forwards nothing but the phase itself (Riot: no in-game help). */
+/**
+ * While a game is being played the helper forwards nothing from the League client but the phase itself.
+ * The one thing it reads during a game is the scoreboard (below), and only when the site asks.
+ */
 export const QUIET_PHASES = ["InProgress", "Reconnect"];
 
+/**
+ * The scoreboard of the game in progress: the one read outside the League client. It is the game's own local
+ * API on the player's computer (https://127.0.0.1:2999/liveclientdata/playerlist), what the player sees with Tab.
+ * The site cannot name a path: the `game` message has none, the helper reads exactly this, only while the phase
+ * is InProgress, and sends only champion, side, level and item ids (no names, no scores, no gold).
+ */
+export const GAME_PHASE = "InProgress";
+export function minimizeGame(body: unknown): unknown {
+  if (!Array.isArray(body)) return null;
+  return body.slice(0, 12).map((p) => ({
+    ...pick(p, ["championName", "rawChampionName", "team", "level"]),
+    items: Array.isArray((p as { items?: unknown })?.items) ? (p as { items: unknown[] }).items.slice(0, 12).map((i) => pick(i, ["itemID"])) : [],
+  }));
+}
+
 export const fromLink = z.discriminatedUnion("t", [
-  z.object({ t: z.literal("hello"), v: z.number().int(), version: z.string().max(40), platform: z.string().max(20), beat: z.number().int().min(1000).max(600_000).optional() }),
+  z.object({ t: z.literal("hello"), v: z.number().int(), version: z.string().max(40), platform: z.string().max(20), beat: z.number().int().min(1000).max(600_000).optional(),
+    // game: this helper can read the scoreboard during a game (the `game` message)
+    game: z.boolean().optional() }),
   // events: whether the client's event socket is up on the helper's side (false: the site falls back to reading)
   z.object({ t: z.literal("client"), up: z.boolean(), via: z.enum(["lockfile", "process"]).optional(), events: z.boolean().optional() }),
   z.object({ t: z.literal("ping") }),
@@ -120,6 +140,8 @@ export const toLink = z.discriminatedUnion("t", [
   z.object({ t: z.literal("get"), id: z.number().int(), path: z.string().max(200) }),
   z.object({ t: z.literal("bye"), reason: z.string().max(200), minVersion: z.string().max(40).optional() }),
   z.object({ t: z.literal("pong") }),
+  // read the scoreboard of the game in progress (no path: the helper reads one fixed thing); answered with `res`
+  z.object({ t: z.literal("game"), id: z.number().int() }),
 ]);
 export type ToLink = z.infer<typeof toLink>;
 

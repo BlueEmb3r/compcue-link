@@ -18,9 +18,11 @@ these things and nothing else (the list is fixed inside the program, in `src/sha
 - the champions you own and your champion mastery
 - recent match history and ranked stats, for you and for players the client shows you
 
-It never reads the game itself, the game's memory, your chat, your friends list, your password or your payment details.
+It never reads the game's memory, your chat, your friends list, your password or your payment details.
 It never reads other files on your computer. It cannot pick, ban, accept a match or click anything: it has no way to
-write to the client. While a game is being played it sends nothing but the fact that a game is in progress.
+write to the client. While a game is being played it sends the fact that a game is in progress and, when the
+site asks for your build options, the scoreboard: the champion, side, level and items of the ten players, as you see
+them with Tab (read from the game's own local API on your computer). No player names, scores or gold are sent.
 
 ## What it sends, and where
 

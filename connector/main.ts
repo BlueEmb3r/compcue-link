@@ -135,6 +135,7 @@ const deps: LinkDeps = {
     const creds = await findClient();
     if (!creds) return null;
     return {
+      // during a game the site may ask for one more read, the scoreboard (Lcu.game, answerGame in link.ts)
       reader: new Lcu(creds),
       events(on, down, up) { const s = new LcuSocket(creds, on, () => down(), up); s.open(); return { close: () => s.close() }; },
     };

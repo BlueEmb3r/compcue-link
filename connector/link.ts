@@ -16,7 +16,7 @@ import { allowedGet, allowedTopic, LINK_PROTOCOL, minimize, parseMessage, QUIET_
 import type { ClientReader } from "../server/live/lcu.js";
 import type { LcuEvent } from "../server/live/lcuSocket.js";
 
-export const LINK_VERSION = "0.2.0";
+export const LINK_VERSION = "0.2.1";
 
 /** Reads allowed in every phase (the phase itself, and the session that names the locked teams at game start). */
 const ALWAYS = ["/lol-gameflow/v1/gameflow-phase", "/lol-gameflow/v1/session"];

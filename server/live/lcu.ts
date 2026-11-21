@@ -10,9 +10,12 @@ import type { ClientCreds } from "./lockfile.js";
 
 const agent = new https.Agent({ rejectUnauthorized: false, keepAlive: true });
 
+/** The game client's local API while a game runs (fixed by Riot). */
+const GAME_PORT = 2999;
+
 export class HttpError extends Error { constructor(readonly status: number, msg: string) { super(msg); } }
 
-function getJson<T>(port: number, path: string, auth?: string, timeoutMs = 2500): Promise<T> {
+export function getJson<T>(port: number, path: string, auth?: string, timeoutMs = 2500): Promise<T> {
   return new Promise((resolve, reject) => {
     const req = https.request({ host: "127.0.0.1", port, path, method: "GET", agent, timeout: timeoutMs,
       headers: { Accept: "application/json", ...(auth ? { Authorization: `Basic ${Buffer.from(`riot:${auth}`).toString("base64")}` } : {}) } }, (res) => {
@@ -40,12 +43,19 @@ export interface ClientReader {
   maybe<T>(path: string): Promise<T | null>;
   /** how the client was found (shown on the Live page) */
   readonly via: ClientCreds["via"] | "link";
+  /**
+   * The player list of the game in progress (the scoreboard), raw; null when no game answers. Optional: a reader
+   * that cannot see the game (a CompCue Link helper today, which is quiet during a game) does not have it.
+   */
+  game?(): Promise<unknown | null>;
 }
 
 export class Lcu implements ClientReader {
   constructor(readonly creds: ClientCreds) {}
   get via() { return this.creds.via; }
   get<T>(path: string): Promise<T> { return getJson<T>(this.creds.port, path, this.creds.password); }
+  /** The game client's own local API (port 2999, loopback, no password): one read, the player list. */
+  game(): Promise<unknown | null> { return getJson<unknown>(GAME_PORT, "/liveclientdata/playerlist", undefined, 1500).catch(() => null); }
   /** null on 404 (e.g. no champ select session right now) instead of throwing. */
   async maybe<T>(path: string): Promise<T | null> {
     try { return await this.get<T>(path); } catch (e) { if (e instanceof HttpError && e.status === 404) return null; throw e; }

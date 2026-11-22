@@ -1,0 +1,5178 @@
+{
+ "note": "Made by scripts/link/contract.ts from the app's TypeScript. Do not edit: the helper's tests read it.",
+ "version": "0.5.0",
+ "constants": {
+  "LINK_PROTOCOL": 1,
+  "LINK_PING": "{\"t\":\"ping\"}",
+  "LINK_PONG": "{\"t\":\"pong\"}",
+  "LINK_BEAT_MS": 15000,
+  "LINK_PONG_LATE_MS": 40000,
+  "LINK_MAX_BYTES": 1048576,
+  "ALLOWED_TOPICS": [
+   "/lol-champ-select/v1/session",
+   "/lol-gameflow/v1/gameflow-phase",
+   "/lol-lobby/v2/lobby"
+  ],
+  "QUIET_PHASES": [
+   "InProgress",
+   "Reconnect"
+  ],
+  "GAME_PHASE": "InProgress",
+  "UPDATE_BUSY": [
+   "Matchmaking",
+   "ReadyCheck",
+   "ChampSelect",
+   "GameStart",
+   "InProgress",
+   "Reconnect"
+  ],
+  "subscribe": [
+   "[5,\"OnJsonApiEvent_lol-champ-select_v1_session\"]",
+   "[5,\"OnJsonApiEvent_lol-gameflow_v1_gameflow-phase\"]",
+   "[5,\"OnJsonApiEvent_lol-lobby_v2_lobby\"]"
+  ]
+ },
+ "allowedGet": [
+  {
+   "path": "/lol-gameflow/v1/gameflow-phase",
+   "ok": true
+  },
+  {
+   "path": "/lol-gameflow/v1/session",
+   "ok": true
+  },
+  {
+   "path": "/lol-champ-select/v1/session",
+   "ok": true
+  },
+  {
+   "path": "/lol-lobby/v2/lobby",
+   "ok": true
+  },
+  {
+   "path": "/lol-summoner/v1/current-summoner",
+   "ok": true
+  },
+  {
+   "path": "/riotclient/region-locale",
+   "ok": true
+  },
+  {
+   "path": "/lol-champions/v1/owned-champions-minimal",
+   "ok": true
+  },
+  {
+   "path": "/lol-champion-mastery/v1/local-player/champion-mastery",
+   "ok": true
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=20",
+   "ok": true
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=40",
+   "ok": true
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=60",
+   "ok": false
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=20&endIndex=40",
+   "ok": false
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/current-summoner/matches",
+   "ok": false
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b/matches?begIndex=0&endIndex=20",
+   "ok": true
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b/matches?begIndex=0&endIndex=40",
+   "ok": true
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b/matches?begIndex=0&endIndex=40&x=1",
+   "ok": false
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/0B9F3C2A-1D4E-5F60-8A7B-9C0D1E2F3A4B/matches?begIndex=0&endIndex=20",
+   "ok": false
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/aaaaaaaaaaaaaaaaaaa/matches?begIndex=0&endIndex=20",
+   "ok": false
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/aaaaaaaaaaaaaaaaaaaa/matches?begIndex=0&endIndex=20",
+   "ok": true
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/matches?begIndex=0&endIndex=20",
+   "ok": true
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/matches?begIndex=0&endIndex=20",
+   "ok": false
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b/../x/matches?begIndex=0&endIndex=20",
+   "ok": false
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol//matches?begIndex=0&endIndex=20",
+   "ok": false
+  },
+  {
+   "path": "/lol-match-history/v1/products/tft/0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b/matches?begIndex=0&endIndex=20",
+   "ok": false
+  },
+  {
+   "path": "/lol-ranked/v1/ranked-stats/0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b",
+   "ok": true
+  },
+  {
+   "path": "/lol-ranked/v1/ranked-stats/aaaaaaaaaaaaaaaaaaa",
+   "ok": false
+  },
+  {
+   "path": "/lol-ranked/v1/ranked-stats/aaaaaaaaaaaaaaaaaaaa",
+   "ok": true
+  },
+  {
+   "path": "/lol-ranked/v1/ranked-stats/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "ok": true
+  },
+  {
+   "path": "/lol-ranked/v1/ranked-stats/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "ok": false
+  },
+  {
+   "path": "/lol-ranked/v1/ranked-stats/0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b/",
+   "ok": false
+  },
+  {
+   "path": "/lol-ranked/v1/ranked-stats/0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b?x=1",
+   "ok": false
+  },
+  {
+   "path": "/lol-ranked/v1/ranked-stats/current-summoner",
+   "ok": false
+  },
+  {
+   "path": "/lol-ranked/v1/ranked-stats/aaaaaaaaaaaaaaaaaaag",
+   "ok": false
+  },
+  {
+   "path": "/lol-ranked/v1/ranked-stats/",
+   "ok": false
+  },
+  {
+   "path": "/lol-ranked/v1/current-ranked-stats",
+   "ok": false
+  },
+  {
+   "path": "/lol-login/v1/session",
+   "ok": false
+  },
+  {
+   "path": "/lol-champ-select/v1/session/actions/1",
+   "ok": false
+  },
+  {
+   "path": "/lol-champ-select/v1/session/",
+   "ok": false
+  },
+  {
+   "path": "/lol-champ-select/v1/session?x=1",
+   "ok": false
+  },
+  {
+   "path": "/LOL-GAMEFLOW/V1/GAMEFLOW-PHASE",
+   "ok": false
+  },
+  {
+   "path": " /lol-gameflow/v1/gameflow-phase",
+   "ok": false
+  },
+  {
+   "path": "/lol-gameflow/v1/gameflow-phase\n",
+   "ok": false
+  },
+  {
+   "path": "lol-gameflow/v1/gameflow-phase",
+   "ok": false
+  },
+  {
+   "path": "/lol-chat/v1/conversations",
+   "ok": false
+  },
+  {
+   "path": "/lol-lobby/v2/lobby/members",
+   "ok": false
+  },
+  {
+   "path": "/riotclient/auth-token",
+   "ok": false
+  },
+  {
+   "path": "/lol-summoner/v1/current-summoner/jwt",
+   "ok": false
+  },
+  {
+   "path": "/entitlements/v1/token",
+   "ok": false
+  },
+  {
+   "path": "",
+   "ok": false
+  },
+  {
+   "path": "/",
+   "ok": false
+  },
+  {
+   "path": "/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "ok": false
+  },
+  {
+   "path": "/lol-gameflow/v1/gameflow-phase#x",
+   "ok": false
+  },
+  {
+   "path": "/lol-gameflow/v1/../../lol-login/v1/session",
+   "ok": false
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=20é",
+   "ok": false
+  },
+  {
+   "path": "/lol-clash/v1/tournament-summary",
+   "ok": true
+  },
+  {
+   "path": "/lol-clash/v1/bracket/1",
+   "ok": true
+  },
+  {
+   "path": "/lol-clash/v1/bracket/123456789012",
+   "ok": true
+  },
+  {
+   "path": "/lol-clash/v1/roster/7",
+   "ok": true
+  },
+  {
+   "path": "/lol-clash/v1/roster/123456789012",
+   "ok": true
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/5",
+   "ok": true
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/99999999999999999999",
+   "ok": true
+  },
+  {
+   "path": "/lol-clash/v1/tournament-summary/",
+   "ok": false
+  },
+  {
+   "path": "/lol-clash/v1/tournament-summary?x=1",
+   "ok": false
+  },
+  {
+   "path": "/lol-clash/v1/bracket/",
+   "ok": false
+  },
+  {
+   "path": "/lol-clash/v1/bracket/-1",
+   "ok": false
+  },
+  {
+   "path": "/lol-clash/v1/bracket/12a",
+   "ok": false
+  },
+  {
+   "path": "/lol-clash/v1/bracket/1234567890123",
+   "ok": false
+  },
+  {
+   "path": "/lol-clash/v1/bracket/1/2",
+   "ok": false
+  },
+  {
+   "path": "/lol-clash/v1/bracket/1?x=1",
+   "ok": false
+  },
+  {
+   "path": "/lol-clash/v1/bracket/１",
+   "ok": false
+  },
+  {
+   "path": "/lol-clash/v1/roster/",
+   "ok": false
+  },
+  {
+   "path": "/lol-clash/v1/roster/1234567890123",
+   "ok": false
+  },
+  {
+   "path": "/lol-clash/v1/roster/7/members",
+   "ok": false
+  },
+  {
+   "path": "/lol-clash/v1/player",
+   "ok": false
+  },
+  {
+   "path": "/lol-clash/v1/tournament/1",
+   "ok": false
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/",
+   "ok": false
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/999999999999999999999",
+   "ok": false
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/abc",
+   "ok": false
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/5/jwt",
+   "ok": false
+  },
+  {
+   "path": "/lol-summoner/v1/summoners?name=x",
+   "ok": false
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/5 ",
+   "ok": false
+  }
+ ],
+ "allowedTopic": [
+  {
+   "uri": "/lol-champ-select/v1/session",
+   "ok": true
+  },
+  {
+   "uri": "/lol-gameflow/v1/gameflow-phase",
+   "ok": true
+  },
+  {
+   "uri": "/lol-lobby/v2/lobby",
+   "ok": true
+  },
+  {
+   "uri": "/lol-chat/v1/conversations",
+   "ok": false
+  },
+  {
+   "uri": "/lol-champ-select/v1/session/",
+   "ok": false
+  },
+  {
+   "uri": "",
+   "ok": false
+  },
+  {
+   "uri": "/lol-lobby/v2/lobby/members",
+   "ok": false
+  }
+ ],
+ "gate": [
+  {
+   "path": "/lol-gameflow/v1/gameflow-phase",
+   "phase": "None",
+   "status": null
+  },
+  {
+   "path": "/lol-gameflow/v1/gameflow-phase",
+   "phase": "ChampSelect",
+   "status": null
+  },
+  {
+   "path": "/lol-gameflow/v1/gameflow-phase",
+   "phase": "InProgress",
+   "status": null
+  },
+  {
+   "path": "/lol-gameflow/v1/gameflow-phase",
+   "phase": "Reconnect",
+   "status": null
+  },
+  {
+   "path": "/lol-gameflow/v1/gameflow-phase",
+   "phase": "EndOfGame",
+   "status": null
+  },
+  {
+   "path": "/lol-gameflow/v1/session",
+   "phase": "None",
+   "status": null
+  },
+  {
+   "path": "/lol-gameflow/v1/session",
+   "phase": "ChampSelect",
+   "status": null
+  },
+  {
+   "path": "/lol-gameflow/v1/session",
+   "phase": "InProgress",
+   "status": null
+  },
+  {
+   "path": "/lol-gameflow/v1/session",
+   "phase": "Reconnect",
+   "status": null
+  },
+  {
+   "path": "/lol-gameflow/v1/session",
+   "phase": "EndOfGame",
+   "status": null
+  },
+  {
+   "path": "/lol-champ-select/v1/session",
+   "phase": "None",
+   "status": null
+  },
+  {
+   "path": "/lol-champ-select/v1/session",
+   "phase": "ChampSelect",
+   "status": null
+  },
+  {
+   "path": "/lol-champ-select/v1/session",
+   "phase": "InProgress",
+   "status": 409
+  },
+  {
+   "path": "/lol-champ-select/v1/session",
+   "phase": "Reconnect",
+   "status": 409
+  },
+  {
+   "path": "/lol-champ-select/v1/session",
+   "phase": "EndOfGame",
+   "status": null
+  },
+  {
+   "path": "/lol-lobby/v2/lobby",
+   "phase": "None",
+   "status": null
+  },
+  {
+   "path": "/lol-lobby/v2/lobby",
+   "phase": "ChampSelect",
+   "status": null
+  },
+  {
+   "path": "/lol-lobby/v2/lobby",
+   "phase": "InProgress",
+   "status": 409
+  },
+  {
+   "path": "/lol-lobby/v2/lobby",
+   "phase": "Reconnect",
+   "status": 409
+  },
+  {
+   "path": "/lol-lobby/v2/lobby",
+   "phase": "EndOfGame",
+   "status": null
+  },
+  {
+   "path": "/lol-summoner/v1/current-summoner",
+   "phase": "None",
+   "status": null
+  },
+  {
+   "path": "/lol-summoner/v1/current-summoner",
+   "phase": "ChampSelect",
+   "status": null
+  },
+  {
+   "path": "/lol-summoner/v1/current-summoner",
+   "phase": "InProgress",
+   "status": 409
+  },
+  {
+   "path": "/lol-summoner/v1/current-summoner",
+   "phase": "Reconnect",
+   "status": 409
+  },
+  {
+   "path": "/lol-summoner/v1/current-summoner",
+   "phase": "EndOfGame",
+   "status": null
+  },
+  {
+   "path": "/riotclient/region-locale",
+   "phase": "None",
+   "status": null
+  },
+  {
+   "path": "/riotclient/region-locale",
+   "phase": "ChampSelect",
+   "status": null
+  },
+  {
+   "path": "/riotclient/region-locale",
+   "phase": "InProgress",
+   "status": 409
+  },
+  {
+   "path": "/riotclient/region-locale",
+   "phase": "Reconnect",
+   "status": 409
+  },
+  {
+   "path": "/riotclient/region-locale",
+   "phase": "EndOfGame",
+   "status": null
+  },
+  {
+   "path": "/lol-champions/v1/owned-champions-minimal",
+   "phase": "None",
+   "status": null
+  },
+  {
+   "path": "/lol-champions/v1/owned-champions-minimal",
+   "phase": "ChampSelect",
+   "status": null
+  },
+  {
+   "path": "/lol-champions/v1/owned-champions-minimal",
+   "phase": "InProgress",
+   "status": 409
+  },
+  {
+   "path": "/lol-champions/v1/owned-champions-minimal",
+   "phase": "Reconnect",
+   "status": 409
+  },
+  {
+   "path": "/lol-champions/v1/owned-champions-minimal",
+   "phase": "EndOfGame",
+   "status": null
+  },
+  {
+   "path": "/lol-champion-mastery/v1/local-player/champion-mastery",
+   "phase": "None",
+   "status": null
+  },
+  {
+   "path": "/lol-champion-mastery/v1/local-player/champion-mastery",
+   "phase": "ChampSelect",
+   "status": null
+  },
+  {
+   "path": "/lol-champion-mastery/v1/local-player/champion-mastery",
+   "phase": "InProgress",
+   "status": 409
+  },
+  {
+   "path": "/lol-champion-mastery/v1/local-player/champion-mastery",
+   "phase": "Reconnect",
+   "status": 409
+  },
+  {
+   "path": "/lol-champion-mastery/v1/local-player/champion-mastery",
+   "phase": "EndOfGame",
+   "status": null
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=20",
+   "phase": "None",
+   "status": null
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=20",
+   "phase": "ChampSelect",
+   "status": null
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=20",
+   "phase": "InProgress",
+   "status": 409
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=20",
+   "phase": "Reconnect",
+   "status": 409
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=20",
+   "phase": "EndOfGame",
+   "status": null
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=40",
+   "phase": "None",
+   "status": null
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=40",
+   "phase": "ChampSelect",
+   "status": null
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=40",
+   "phase": "InProgress",
+   "status": 409
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=40",
+   "phase": "Reconnect",
+   "status": 409
+  },
+  {
+   "path": "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=40",
+   "phase": "EndOfGame",
+   "status": null
+  },
+  {
+   "path": "/lol-clash/v1/tournament-summary",
+   "phase": "None",
+   "status": null
+  },
+  {
+   "path": "/lol-clash/v1/tournament-summary",
+   "phase": "ChampSelect",
+   "status": null
+  },
+  {
+   "path": "/lol-clash/v1/tournament-summary",
+   "phase": "InProgress",
+   "status": 409
+  },
+  {
+   "path": "/lol-clash/v1/tournament-summary",
+   "phase": "Reconnect",
+   "status": 409
+  },
+  {
+   "path": "/lol-clash/v1/tournament-summary",
+   "phase": "EndOfGame",
+   "status": null
+  },
+  {
+   "path": "/lol-clash/v1/bracket/1",
+   "phase": "None",
+   "status": null
+  },
+  {
+   "path": "/lol-clash/v1/bracket/1",
+   "phase": "ChampSelect",
+   "status": null
+  },
+  {
+   "path": "/lol-clash/v1/bracket/1",
+   "phase": "InProgress",
+   "status": 409
+  },
+  {
+   "path": "/lol-clash/v1/bracket/1",
+   "phase": "Reconnect",
+   "status": 409
+  },
+  {
+   "path": "/lol-clash/v1/bracket/1",
+   "phase": "EndOfGame",
+   "status": null
+  },
+  {
+   "path": "/lol-clash/v1/bracket/123456789012",
+   "phase": "None",
+   "status": null
+  },
+  {
+   "path": "/lol-clash/v1/bracket/123456789012",
+   "phase": "ChampSelect",
+   "status": null
+  },
+  {
+   "path": "/lol-clash/v1/bracket/123456789012",
+   "phase": "InProgress",
+   "status": 409
+  },
+  {
+   "path": "/lol-clash/v1/bracket/123456789012",
+   "phase": "Reconnect",
+   "status": 409
+  },
+  {
+   "path": "/lol-clash/v1/bracket/123456789012",
+   "phase": "EndOfGame",
+   "status": null
+  },
+  {
+   "path": "/lol-clash/v1/roster/7",
+   "phase": "None",
+   "status": null
+  },
+  {
+   "path": "/lol-clash/v1/roster/7",
+   "phase": "ChampSelect",
+   "status": null
+  },
+  {
+   "path": "/lol-clash/v1/roster/7",
+   "phase": "InProgress",
+   "status": 409
+  },
+  {
+   "path": "/lol-clash/v1/roster/7",
+   "phase": "Reconnect",
+   "status": 409
+  },
+  {
+   "path": "/lol-clash/v1/roster/7",
+   "phase": "EndOfGame",
+   "status": null
+  },
+  {
+   "path": "/lol-clash/v1/roster/123456789012",
+   "phase": "None",
+   "status": null
+  },
+  {
+   "path": "/lol-clash/v1/roster/123456789012",
+   "phase": "ChampSelect",
+   "status": null
+  },
+  {
+   "path": "/lol-clash/v1/roster/123456789012",
+   "phase": "InProgress",
+   "status": 409
+  },
+  {
+   "path": "/lol-clash/v1/roster/123456789012",
+   "phase": "Reconnect",
+   "status": 409
+  },
+  {
+   "path": "/lol-clash/v1/roster/123456789012",
+   "phase": "EndOfGame",
+   "status": null
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/5",
+   "phase": "None",
+   "status": null
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/5",
+   "phase": "ChampSelect",
+   "status": null
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/5",
+   "phase": "InProgress",
+   "status": 409
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/5",
+   "phase": "Reconnect",
+   "status": 409
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/5",
+   "phase": "EndOfGame",
+   "status": null
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/99999999999999999999",
+   "phase": "None",
+   "status": null
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/99999999999999999999",
+   "phase": "ChampSelect",
+   "status": null
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/99999999999999999999",
+   "phase": "InProgress",
+   "status": 409
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/99999999999999999999",
+   "phase": "Reconnect",
+   "status": 409
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/99999999999999999999",
+   "phase": "EndOfGame",
+   "status": null
+  },
+  {
+   "path": "/lol-clash/v1/player",
+   "phase": "None",
+   "status": 403
+  },
+  {
+   "path": "/lol-clash/v1/player",
+   "phase": "ChampSelect",
+   "status": 403
+  },
+  {
+   "path": "/lol-clash/v1/player",
+   "phase": "InProgress",
+   "status": 403
+  },
+  {
+   "path": "/lol-clash/v1/player",
+   "phase": "Reconnect",
+   "status": 403
+  },
+  {
+   "path": "/lol-clash/v1/player",
+   "phase": "EndOfGame",
+   "status": 403
+  },
+  {
+   "path": "/lol-login/v1/session",
+   "phase": "None",
+   "status": 403
+  },
+  {
+   "path": "/lol-login/v1/session",
+   "phase": "ChampSelect",
+   "status": 403
+  },
+  {
+   "path": "/lol-login/v1/session",
+   "phase": "InProgress",
+   "status": 403
+  },
+  {
+   "path": "/lol-login/v1/session",
+   "phase": "Reconnect",
+   "status": 403
+  },
+  {
+   "path": "/lol-login/v1/session",
+   "phase": "EndOfGame",
+   "status": 403
+  },
+  {
+   "path": "/lol-ranked/v1/ranked-stats/0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b",
+   "phase": "None",
+   "status": null
+  },
+  {
+   "path": "/lol-ranked/v1/ranked-stats/0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b",
+   "phase": "ChampSelect",
+   "status": null
+  },
+  {
+   "path": "/lol-ranked/v1/ranked-stats/0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b",
+   "phase": "InProgress",
+   "status": 409
+  },
+  {
+   "path": "/lol-ranked/v1/ranked-stats/0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b",
+   "phase": "Reconnect",
+   "status": 409
+  },
+  {
+   "path": "/lol-ranked/v1/ranked-stats/0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b",
+   "phase": "EndOfGame",
+   "status": null
+  }
+ ],
+ "minimize": [
+  {
+   "path": "/lol-clash/v1/tournament-summary",
+   "body": [
+    {
+     "tournamentId": 1,
+     "bracketId": 2,
+     "rosterId": "3",
+     "state": "IN_GAME",
+     "buyInOptions": [
+      1
+     ],
+     "entryFee": 5,
+     "logoUrl": "x",
+     "secret": "MUST-NOT-LEAVE"
+    },
+    5,
+    null,
+    "x"
+   ],
+   "out": [
+    {
+     "tournamentId": 1,
+     "bracketId": 2,
+     "rosterId": "3",
+     "state": "IN_GAME"
+    },
+    {},
+    {},
+    {}
+   ]
+  },
+  {
+   "path": "/lol-clash/v1/tournament-summary",
+   "body": [
+    {
+     "tournamentId": 0,
+     "extra": "MUST-NOT-LEAVE"
+    },
+    {
+     "tournamentId": 1,
+     "extra": "MUST-NOT-LEAVE"
+    },
+    {
+     "tournamentId": 2,
+     "extra": "MUST-NOT-LEAVE"
+    },
+    {
+     "tournamentId": 3,
+     "extra": "MUST-NOT-LEAVE"
+    },
+    {
+     "tournamentId": 4,
+     "extra": "MUST-NOT-LEAVE"
+    },
+    {
+     "tournamentId": 5,
+     "extra": "MUST-NOT-LEAVE"
+    },
+    {
+     "tournamentId": 6,
+     "extra": "MUST-NOT-LEAVE"
+    },
+    {
+     "tournamentId": 7,
+     "extra": "MUST-NOT-LEAVE"
+    },
+    {
+     "tournamentId": 8,
+     "extra": "MUST-NOT-LEAVE"
+    },
+    {
+     "tournamentId": 9,
+     "extra": "MUST-NOT-LEAVE"
+    },
+    {
+     "tournamentId": 10,
+     "extra": "MUST-NOT-LEAVE"
+    },
+    {
+     "tournamentId": 11,
+     "extra": "MUST-NOT-LEAVE"
+    }
+   ],
+   "out": [
+    {
+     "tournamentId": 0
+    },
+    {
+     "tournamentId": 1
+    },
+    {
+     "tournamentId": 2
+    },
+    {
+     "tournamentId": 3
+    },
+    {
+     "tournamentId": 4
+    },
+    {
+     "tournamentId": 5
+    },
+    {
+     "tournamentId": 6
+    },
+    {
+     "tournamentId": 7
+    }
+   ]
+  },
+  {
+   "path": "/lol-clash/v1/tournament-summary",
+   "body": {
+    "tournamentId": 1
+   },
+   "out": []
+  },
+  {
+   "path": "/lol-clash/v1/tournament-summary",
+   "body": [],
+   "out": []
+  },
+  {
+   "path": "/lol-clash/v1/bracket/2",
+   "body": {
+    "id": 2,
+    "tournamentId": 1,
+    "rosters": [
+     {
+      "name": "MUST-NOT-LEAVE"
+     }
+    ],
+    "matches": [
+     {
+      "id": 1,
+      "round": 1,
+      "status": "UPCOMING",
+      "rosterId1": "3",
+      "rosterId2": "-4",
+      "winnerId": "0",
+      "gameId": 9,
+      "loserBracket": false,
+      "order": 2
+     },
+     7,
+     null
+    ]
+   },
+   "out": {
+    "matches": [
+     {
+      "id": 1,
+      "round": 1,
+      "status": "UPCOMING",
+      "rosterId1": "3",
+      "rosterId2": "-4",
+      "winnerId": "0"
+     },
+     {},
+     {}
+    ]
+   }
+  },
+  {
+   "path": "/lol-clash/v1/bracket/2",
+   "body": {
+    "matches": [
+     {
+      "id": 0,
+      "forceWinner": true
+     },
+     {
+      "id": 1,
+      "forceWinner": true
+     },
+     {
+      "id": 2,
+      "forceWinner": true
+     },
+     {
+      "id": 3,
+      "forceWinner": true
+     },
+     {
+      "id": 4,
+      "forceWinner": true
+     },
+     {
+      "id": 5,
+      "forceWinner": true
+     },
+     {
+      "id": 6,
+      "forceWinner": true
+     },
+     {
+      "id": 7,
+      "forceWinner": true
+     },
+     {
+      "id": 8,
+      "forceWinner": true
+     },
+     {
+      "id": 9,
+      "forceWinner": true
+     },
+     {
+      "id": 10,
+      "forceWinner": true
+     },
+     {
+      "id": 11,
+      "forceWinner": true
+     },
+     {
+      "id": 12,
+      "forceWinner": true
+     },
+     {
+      "id": 13,
+      "forceWinner": true
+     },
+     {
+      "id": 14,
+      "forceWinner": true
+     },
+     {
+      "id": 15,
+      "forceWinner": true
+     },
+     {
+      "id": 16,
+      "forceWinner": true
+     },
+     {
+      "id": 17,
+      "forceWinner": true
+     },
+     {
+      "id": 18,
+      "forceWinner": true
+     },
+     {
+      "id": 19,
+      "forceWinner": true
+     },
+     {
+      "id": 20,
+      "forceWinner": true
+     },
+     {
+      "id": 21,
+      "forceWinner": true
+     },
+     {
+      "id": 22,
+      "forceWinner": true
+     },
+     {
+      "id": 23,
+      "forceWinner": true
+     },
+     {
+      "id": 24,
+      "forceWinner": true
+     },
+     {
+      "id": 25,
+      "forceWinner": true
+     },
+     {
+      "id": 26,
+      "forceWinner": true
+     },
+     {
+      "id": 27,
+      "forceWinner": true
+     },
+     {
+      "id": 28,
+      "forceWinner": true
+     },
+     {
+      "id": 29,
+      "forceWinner": true
+     },
+     {
+      "id": 30,
+      "forceWinner": true
+     },
+     {
+      "id": 31,
+      "forceWinner": true
+     },
+     {
+      "id": 32,
+      "forceWinner": true
+     },
+     {
+      "id": 33,
+      "forceWinner": true
+     },
+     {
+      "id": 34,
+      "forceWinner": true
+     },
+     {
+      "id": 35,
+      "forceWinner": true
+     },
+     {
+      "id": 36,
+      "forceWinner": true
+     },
+     {
+      "id": 37,
+      "forceWinner": true
+     },
+     {
+      "id": 38,
+      "forceWinner": true
+     },
+     {
+      "id": 39,
+      "forceWinner": true
+     },
+     {
+      "id": 40,
+      "forceWinner": true
+     },
+     {
+      "id": 41,
+      "forceWinner": true
+     },
+     {
+      "id": 42,
+      "forceWinner": true
+     },
+     {
+      "id": 43,
+      "forceWinner": true
+     },
+     {
+      "id": 44,
+      "forceWinner": true
+     },
+     {
+      "id": 45,
+      "forceWinner": true
+     },
+     {
+      "id": 46,
+      "forceWinner": true
+     },
+     {
+      "id": 47,
+      "forceWinner": true
+     },
+     {
+      "id": 48,
+      "forceWinner": true
+     },
+     {
+      "id": 49,
+      "forceWinner": true
+     },
+     {
+      "id": 50,
+      "forceWinner": true
+     },
+     {
+      "id": 51,
+      "forceWinner": true
+     },
+     {
+      "id": 52,
+      "forceWinner": true
+     },
+     {
+      "id": 53,
+      "forceWinner": true
+     },
+     {
+      "id": 54,
+      "forceWinner": true
+     },
+     {
+      "id": 55,
+      "forceWinner": true
+     },
+     {
+      "id": 56,
+      "forceWinner": true
+     },
+     {
+      "id": 57,
+      "forceWinner": true
+     },
+     {
+      "id": 58,
+      "forceWinner": true
+     },
+     {
+      "id": 59,
+      "forceWinner": true
+     },
+     {
+      "id": 60,
+      "forceWinner": true
+     },
+     {
+      "id": 61,
+      "forceWinner": true
+     },
+     {
+      "id": 62,
+      "forceWinner": true
+     },
+     {
+      "id": 63,
+      "forceWinner": true
+     },
+     {
+      "id": 64,
+      "forceWinner": true
+     },
+     {
+      "id": 65,
+      "forceWinner": true
+     },
+     {
+      "id": 66,
+      "forceWinner": true
+     },
+     {
+      "id": 67,
+      "forceWinner": true
+     },
+     {
+      "id": 68,
+      "forceWinner": true
+     },
+     {
+      "id": 69,
+      "forceWinner": true
+     },
+     {
+      "id": 70,
+      "forceWinner": true
+     },
+     {
+      "id": 71,
+      "forceWinner": true
+     },
+     {
+      "id": 72,
+      "forceWinner": true
+     },
+     {
+      "id": 73,
+      "forceWinner": true
+     },
+     {
+      "id": 74,
+      "forceWinner": true
+     },
+     {
+      "id": 75,
+      "forceWinner": true
+     },
+     {
+      "id": 76,
+      "forceWinner": true
+     },
+     {
+      "id": 77,
+      "forceWinner": true
+     },
+     {
+      "id": 78,
+      "forceWinner": true
+     },
+     {
+      "id": 79,
+      "forceWinner": true
+     },
+     {
+      "id": 80,
+      "forceWinner": true
+     },
+     {
+      "id": 81,
+      "forceWinner": true
+     },
+     {
+      "id": 82,
+      "forceWinner": true
+     },
+     {
+      "id": 83,
+      "forceWinner": true
+     },
+     {
+      "id": 84,
+      "forceWinner": true
+     },
+     {
+      "id": 85,
+      "forceWinner": true
+     },
+     {
+      "id": 86,
+      "forceWinner": true
+     },
+     {
+      "id": 87,
+      "forceWinner": true
+     },
+     {
+      "id": 88,
+      "forceWinner": true
+     },
+     {
+      "id": 89,
+      "forceWinner": true
+     },
+     {
+      "id": 90,
+      "forceWinner": true
+     },
+     {
+      "id": 91,
+      "forceWinner": true
+     },
+     {
+      "id": 92,
+      "forceWinner": true
+     },
+     {
+      "id": 93,
+      "forceWinner": true
+     },
+     {
+      "id": 94,
+      "forceWinner": true
+     },
+     {
+      "id": 95,
+      "forceWinner": true
+     },
+     {
+      "id": 96,
+      "forceWinner": true
+     },
+     {
+      "id": 97,
+      "forceWinner": true
+     },
+     {
+      "id": 98,
+      "forceWinner": true
+     },
+     {
+      "id": 99,
+      "forceWinner": true
+     },
+     {
+      "id": 100,
+      "forceWinner": true
+     },
+     {
+      "id": 101,
+      "forceWinner": true
+     },
+     {
+      "id": 102,
+      "forceWinner": true
+     },
+     {
+      "id": 103,
+      "forceWinner": true
+     },
+     {
+      "id": 104,
+      "forceWinner": true
+     },
+     {
+      "id": 105,
+      "forceWinner": true
+     },
+     {
+      "id": 106,
+      "forceWinner": true
+     },
+     {
+      "id": 107,
+      "forceWinner": true
+     },
+     {
+      "id": 108,
+      "forceWinner": true
+     },
+     {
+      "id": 109,
+      "forceWinner": true
+     },
+     {
+      "id": 110,
+      "forceWinner": true
+     },
+     {
+      "id": 111,
+      "forceWinner": true
+     },
+     {
+      "id": 112,
+      "forceWinner": true
+     },
+     {
+      "id": 113,
+      "forceWinner": true
+     },
+     {
+      "id": 114,
+      "forceWinner": true
+     },
+     {
+      "id": 115,
+      "forceWinner": true
+     },
+     {
+      "id": 116,
+      "forceWinner": true
+     },
+     {
+      "id": 117,
+      "forceWinner": true
+     },
+     {
+      "id": 118,
+      "forceWinner": true
+     },
+     {
+      "id": 119,
+      "forceWinner": true
+     },
+     {
+      "id": 120,
+      "forceWinner": true
+     },
+     {
+      "id": 121,
+      "forceWinner": true
+     },
+     {
+      "id": 122,
+      "forceWinner": true
+     },
+     {
+      "id": 123,
+      "forceWinner": true
+     },
+     {
+      "id": 124,
+      "forceWinner": true
+     },
+     {
+      "id": 125,
+      "forceWinner": true
+     },
+     {
+      "id": 126,
+      "forceWinner": true
+     },
+     {
+      "id": 127,
+      "forceWinner": true
+     },
+     {
+      "id": 128,
+      "forceWinner": true
+     },
+     {
+      "id": 129,
+      "forceWinner": true
+     },
+     {
+      "id": 130,
+      "forceWinner": true
+     },
+     {
+      "id": 131,
+      "forceWinner": true
+     },
+     {
+      "id": 132,
+      "forceWinner": true
+     },
+     {
+      "id": 133,
+      "forceWinner": true
+     },
+     {
+      "id": 134,
+      "forceWinner": true
+     },
+     {
+      "id": 135,
+      "forceWinner": true
+     },
+     {
+      "id": 136,
+      "forceWinner": true
+     },
+     {
+      "id": 137,
+      "forceWinner": true
+     },
+     {
+      "id": 138,
+      "forceWinner": true
+     },
+     {
+      "id": 139,
+      "forceWinner": true
+     }
+    ]
+   },
+   "out": {
+    "matches": [
+     {
+      "id": 0
+     },
+     {
+      "id": 1
+     },
+     {
+      "id": 2
+     },
+     {
+      "id": 3
+     },
+     {
+      "id": 4
+     },
+     {
+      "id": 5
+     },
+     {
+      "id": 6
+     },
+     {
+      "id": 7
+     },
+     {
+      "id": 8
+     },
+     {
+      "id": 9
+     },
+     {
+      "id": 10
+     },
+     {
+      "id": 11
+     },
+     {
+      "id": 12
+     },
+     {
+      "id": 13
+     },
+     {
+      "id": 14
+     },
+     {
+      "id": 15
+     },
+     {
+      "id": 16
+     },
+     {
+      "id": 17
+     },
+     {
+      "id": 18
+     },
+     {
+      "id": 19
+     },
+     {
+      "id": 20
+     },
+     {
+      "id": 21
+     },
+     {
+      "id": 22
+     },
+     {
+      "id": 23
+     },
+     {
+      "id": 24
+     },
+     {
+      "id": 25
+     },
+     {
+      "id": 26
+     },
+     {
+      "id": 27
+     },
+     {
+      "id": 28
+     },
+     {
+      "id": 29
+     },
+     {
+      "id": 30
+     },
+     {
+      "id": 31
+     },
+     {
+      "id": 32
+     },
+     {
+      "id": 33
+     },
+     {
+      "id": 34
+     },
+     {
+      "id": 35
+     },
+     {
+      "id": 36
+     },
+     {
+      "id": 37
+     },
+     {
+      "id": 38
+     },
+     {
+      "id": 39
+     },
+     {
+      "id": 40
+     },
+     {
+      "id": 41
+     },
+     {
+      "id": 42
+     },
+     {
+      "id": 43
+     },
+     {
+      "id": 44
+     },
+     {
+      "id": 45
+     },
+     {
+      "id": 46
+     },
+     {
+      "id": 47
+     },
+     {
+      "id": 48
+     },
+     {
+      "id": 49
+     },
+     {
+      "id": 50
+     },
+     {
+      "id": 51
+     },
+     {
+      "id": 52
+     },
+     {
+      "id": 53
+     },
+     {
+      "id": 54
+     },
+     {
+      "id": 55
+     },
+     {
+      "id": 56
+     },
+     {
+      "id": 57
+     },
+     {
+      "id": 58
+     },
+     {
+      "id": 59
+     },
+     {
+      "id": 60
+     },
+     {
+      "id": 61
+     },
+     {
+      "id": 62
+     },
+     {
+      "id": 63
+     },
+     {
+      "id": 64
+     },
+     {
+      "id": 65
+     },
+     {
+      "id": 66
+     },
+     {
+      "id": 67
+     },
+     {
+      "id": 68
+     },
+     {
+      "id": 69
+     },
+     {
+      "id": 70
+     },
+     {
+      "id": 71
+     },
+     {
+      "id": 72
+     },
+     {
+      "id": 73
+     },
+     {
+      "id": 74
+     },
+     {
+      "id": 75
+     },
+     {
+      "id": 76
+     },
+     {
+      "id": 77
+     },
+     {
+      "id": 78
+     },
+     {
+      "id": 79
+     },
+     {
+      "id": 80
+     },
+     {
+      "id": 81
+     },
+     {
+      "id": 82
+     },
+     {
+      "id": 83
+     },
+     {
+      "id": 84
+     },
+     {
+      "id": 85
+     },
+     {
+      "id": 86
+     },
+     {
+      "id": 87
+     },
+     {
+      "id": 88
+     },
+     {
+      "id": 89
+     },
+     {
+      "id": 90
+     },
+     {
+      "id": 91
+     },
+     {
+      "id": 92
+     },
+     {
+      "id": 93
+     },
+     {
+      "id": 94
+     },
+     {
+      "id": 95
+     },
+     {
+      "id": 96
+     },
+     {
+      "id": 97
+     },
+     {
+      "id": 98
+     },
+     {
+      "id": 99
+     },
+     {
+      "id": 100
+     },
+     {
+      "id": 101
+     },
+     {
+      "id": 102
+     },
+     {
+      "id": 103
+     },
+     {
+      "id": 104
+     },
+     {
+      "id": 105
+     },
+     {
+      "id": 106
+     },
+     {
+      "id": 107
+     },
+     {
+      "id": 108
+     },
+     {
+      "id": 109
+     },
+     {
+      "id": 110
+     },
+     {
+      "id": 111
+     },
+     {
+      "id": 112
+     },
+     {
+      "id": 113
+     },
+     {
+      "id": 114
+     },
+     {
+      "id": 115
+     },
+     {
+      "id": 116
+     },
+     {
+      "id": 117
+     },
+     {
+      "id": 118
+     },
+     {
+      "id": 119
+     },
+     {
+      "id": 120
+     },
+     {
+      "id": 121
+     },
+     {
+      "id": 122
+     },
+     {
+      "id": 123
+     },
+     {
+      "id": 124
+     },
+     {
+      "id": 125
+     },
+     {
+      "id": 126
+     },
+     {
+      "id": 127
+     }
+    ]
+   }
+  },
+  {
+   "path": "/lol-clash/v1/bracket/2",
+   "body": {
+    "matches": "no"
+   },
+   "out": {
+    "matches": []
+   }
+  },
+  {
+   "path": "/lol-clash/v1/bracket/2",
+   "body": [],
+   "out": {
+    "matches": []
+   }
+  },
+  {
+   "path": "/lol-clash/v1/roster/7",
+   "body": {
+    "id": "7",
+    "name": "Team",
+    "shortName": "TM",
+    "logo": 3,
+    "tier": 2,
+    "wins": 1,
+    "invitationId": "MUST-NOT-LEAVE",
+    "members": [
+     {
+      "summonerId": 5,
+      "position": "TOP",
+      "buyin": 1,
+      "state": "READY",
+      "currentBuyin": 2,
+      "inviterId": 9
+     },
+     "x"
+    ]
+   },
+   "out": {
+    "id": "7",
+    "name": "Team",
+    "shortName": "TM",
+    "members": [
+     {
+      "summonerId": 5,
+      "position": "TOP"
+     },
+     {}
+    ]
+   }
+  },
+  {
+   "path": "/lol-clash/v1/roster/7",
+   "body": {
+    "name": "Team",
+    "members": [
+     {
+      "summonerId": 0
+     },
+     {
+      "summonerId": 1
+     },
+     {
+      "summonerId": 2
+     },
+     {
+      "summonerId": 3
+     },
+     {
+      "summonerId": 4
+     },
+     {
+      "summonerId": 5
+     },
+     {
+      "summonerId": 6
+     },
+     {
+      "summonerId": 7
+     },
+     {
+      "summonerId": 8
+     },
+     {
+      "summonerId": 9
+     },
+     {
+      "summonerId": 10
+     },
+     {
+      "summonerId": 11
+     },
+     {
+      "summonerId": 12
+     },
+     {
+      "summonerId": 13
+     }
+    ]
+   },
+   "out": {
+    "name": "Team",
+    "members": [
+     {
+      "summonerId": 0
+     },
+     {
+      "summonerId": 1
+     },
+     {
+      "summonerId": 2
+     },
+     {
+      "summonerId": 3
+     },
+     {
+      "summonerId": 4
+     },
+     {
+      "summonerId": 5
+     },
+     {
+      "summonerId": 6
+     },
+     {
+      "summonerId": 7
+     },
+     {
+      "summonerId": 8
+     },
+     {
+      "summonerId": 9
+     }
+    ]
+   }
+  },
+  {
+   "path": "/lol-clash/v1/roster/7",
+   "body": {
+    "members": {}
+   },
+   "out": {
+    "members": []
+   }
+  },
+  {
+   "path": "/lol-clash/v1/roster/7",
+   "body": [
+    1
+   ],
+   "out": {
+    "members": []
+   }
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/5",
+   "body": {
+    "gameName": "a",
+    "tagLine": "b",
+    "puuid": "0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b",
+    "accountId": 4,
+    "summonerId": 5,
+    "profileIconId": 1,
+    "summonerLevel": 30,
+    "internalName": "n",
+    "privacy": "PUBLIC"
+   },
+   "out": {
+    "gameName": "a",
+    "tagLine": "b",
+    "puuid": "0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b"
+   }
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/5",
+   "body": [
+    {
+     "gameName": "a"
+    }
+   ],
+   "out": {}
+  },
+  {
+   "path": "/lol-summoner/v1/summoners/5",
+   "body": "text",
+   "out": "text"
+  },
+  {
+   "path": "/lol-champ-select/v1/session",
+   "body": {
+    "localPlayerCellId": 0,
+    "myTeam": [
+     {
+      "cellId": 0,
+      "puuid": "0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b",
+      "championId": 103,
+      "playerCredentials": "MUST-NOT-LEAVE"
+     }
+    ],
+    "theirTeam": [],
+    "actions": [
+     [
+      {
+       "id": 1,
+       "type": "pick"
+      }
+     ]
+    ],
+    "bans": {
+     "myTeamBans": [
+      1
+     ]
+    },
+    "timer": {
+     "phase": "BAN_PICK",
+     "adjustedTimeLeftInPhase": 20000
+    },
+    "isSpectating": false,
+    "gameId": 7,
+    "chatDetails": {
+     "mucJwtDto": {
+      "jwt": "MUST-NOT-LEAVE"
+     }
+    },
+    "trades": [],
+    "pickOrderSwaps": []
+   },
+   "out": {
+    "localPlayerCellId": 0,
+    "myTeam": [
+     {
+      "cellId": 0,
+      "puuid": "0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b",
+      "championId": 103
+     }
+    ],
+    "theirTeam": [],
+    "actions": [
+     [
+      {
+       "id": 1,
+       "type": "pick"
+      }
+     ]
+    ],
+    "bans": {
+     "myTeamBans": [
+      1
+     ]
+    },
+    "timer": {
+     "phase": "BAN_PICK",
+     "adjustedTimeLeftInPhase": 20000
+    },
+    "isSpectating": false,
+    "gameId": 7
+   }
+  },
+  {
+   "path": "/lol-champ-select/v1/session?x=1",
+   "body": {
+    "gameId": 7,
+    "trades": [
+     1
+    ],
+    "myTeam": [
+     {
+      "ACCOUNTID": 5,
+      "AccountId": 6,
+      "summonerInternalName": "n",
+      "puuid": "0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b"
+     }
+    ]
+   },
+   "out": {
+    "myTeam": [
+     {
+      "puuid": "0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b"
+     }
+    ],
+    "gameId": 7
+   }
+  },
+  {
+   "path": "/lol-champ-select/v1/session",
+   "body": [
+    1,
+    2
+   ],
+   "out": {}
+  },
+  {
+   "path": "/lol-champ-select/v1/session",
+   "body": null,
+   "out": null
+  },
+  {
+   "path": "/lol-champ-select/v1/session",
+   "body": "text",
+   "out": "text"
+  },
+  {
+   "path": "/lol-lobby/v2/lobby",
+   "body": {
+    "partyId": "p",
+    "mucJwtDto": {
+     "jwt": "MUST-NOT-LEAVE"
+    },
+    "members": [
+     {
+      "puuid": "0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b",
+      "summonerName": "n"
+     },
+     {
+      "summonerName": "x"
+     },
+     5,
+     null
+    ]
+   },
+   "out": {
+    "members": [
+     {
+      "puuid": "0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b"
+     },
+     {},
+     {},
+     {}
+    ]
+   }
+  },
+  {
+   "path": "/lol-lobby/v2/lobby",
+   "body": {
+    "members": "no"
+   },
+   "out": {
+    "members": []
+   }
+  },
+  {
+   "path": "/lol-lobby/v2/lobby",
+   "body": {},
+   "out": {
+    "members": []
+   }
+  },
+  {
+   "path": "/lol-lobby/v2/lobby",
+   "body": [],
+   "out": {
+    "members": []
+   }
+  },
+  {
+   "path": "/lol-gameflow/v1/session",
+   "body": {
+    "phase": "InProgress",
+    "gameClient": {
+     "serverIp": "1.2.3.4",
+     "serverPort": 5000
+    },
+    "gameData": {
+     "gameId": 9,
+     "password": "MUST-NOT-LEAVE",
+     "queue": {
+      "id": 420,
+      "name": "Ranked"
+     },
+     "playerChampionSelections": [],
+     "teamOne": [
+      {
+       "puuid": "0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b",
+       "championId": 1,
+       "gameName": "a",
+       "tagLine": "b",
+       "selectedPosition": "TOP",
+       "team": 100,
+       "summonerInternalName": "s",
+       "accountId": 4
+      }
+     ],
+     "teamTwo": "no"
+    }
+   },
+   "out": {
+    "gameData": {
+     "queue": {
+      "id": 420
+     },
+     "teamOne": [
+      {
+       "puuid": "0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b",
+       "championId": 1,
+       "gameName": "a",
+       "tagLine": "b",
+       "selectedPosition": "TOP",
+       "team": 100
+      }
+     ],
+     "teamTwo": []
+    }
+   }
+  },
+  {
+   "path": "/lol-gameflow/v1/session",
+   "body": {
+    "gameData": null
+   },
+   "out": {
+    "gameData": {
+     "queue": {},
+     "teamOne": [],
+     "teamTwo": []
+    }
+   }
+  },
+  {
+   "path": "/lol-gameflow/v1/session",
+   "body": {},
+   "out": {
+    "gameData": {
+     "queue": {},
+     "teamOne": [],
+     "teamTwo": []
+    }
+   }
+  },
+  {
+   "path": "/lol-gameflow/v1/gameflow-phase",
+   "body": "ChampSelect",
+   "out": "ChampSelect"
+  },
+  {
+   "path": "/lol-summoner/v1/current-summoner",
+   "body": {
+    "puuid": "0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b",
+    "accountId": 1,
+    "gameName": "a",
+    "tagLine": "b",
+    "summonerLevel": 30,
+    "nested": [
+     {
+      "idToken": "MUST-NOT-LEAVE",
+      "ok": true,
+      "accessToken": "MUST-NOT-LEAVE",
+      "EntitlementsToken": "MUST-NOT-LEAVE"
+     }
+    ]
+   },
+   "out": {
+    "puuid": "0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b",
+    "gameName": "a",
+    "tagLine": "b",
+    "summonerLevel": 30,
+    "nested": [
+     {
+      "ok": true
+     }
+    ]
+   }
+  },
+  {
+   "path": "/riotclient/region-locale",
+   "body": {
+    "region": "LA1",
+    "locale": "es_MX",
+    "webRegion": "lan"
+   },
+   "out": {
+    "region": "LA1",
+    "locale": "es_MX",
+    "webRegion": "lan"
+   }
+  },
+  {
+   "path": "/lol-ranked/v1/ranked-stats/0b9f3c2a-1d4e-5f60-8a7b-9c0d1e2f3a4b",
+   "body": {
+    "queues": [
+     {
+      "queueType": "RANKED_SOLO_5x5",
+      "tier": "GOLD",
+      "division": "II"
+     }
+    ],
+    "multiUserChatPassword": "MUST-NOT-LEAVE",
+    "MULTIUSERCHATJWT": "MUST-NOT-LEAVE",
+    "multiUserChatId": "x",
+    "encryptionKey": "MUST-NOT-LEAVE",
+    "observerEncryptionKey": "MUST-NOT-LEAVE",
+    "observerServerIp": "x",
+    "observerServerPort": 1,
+    "chatRoomName": "x",
+    "chatRoomPassword": "MUST-NOT-LEAVE",
+    "passwords": "kept",
+    "xpassword": "kept"
+   },
+   "out": {
+    "queues": [
+     {
+      "queueType": "RANKED_SOLO_5x5",
+      "tier": "GOLD",
+      "division": "II"
+     }
+    ],
+    "passwords": "kept",
+    "xpassword": "kept"
+   }
+  },
+  {
+   "path": "/lol-champions/v1/owned-champions-minimal",
+   "body": [
+    {
+     "id": 1,
+     "alias": "Annie",
+     "password": "MUST-NOT-LEAVE"
+    },
+    2,
+    "three",
+    null,
+    [
+     {
+      "serverIp": "x",
+      "y": 1
+     }
+    ]
+   ],
+   "out": [
+    {
+     "id": 1,
+     "alias": "Annie"
+    },
+    2,
+    "three",
+    null,
+    [
+     {
+      "y": 1
+     }
+    ]
+   ]
+  },
+  {
+   "path": "/lol-champion-mastery/v1/local-player/champion-mastery",
+   "body": {
+    "next": {
+     "next": {
+      "next": {
+       "next": {
+        "next": {
+         "next": {
+          "next": {
+           "next": {
+            "next": {
+             "next": {
+              "next": {
+               "password": "MUST-NOT-LEAVE",
+               "keep": 1
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "out": {
+    "next": {
+     "next": {
+      "next": {
+       "next": {
+        "next": {
+         "next": {
+          "next": {
+           "next": {
+            "next": {
+             "next": {
+              "next": {
+               "keep": 1
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "path": "/lol-champion-mastery/v1/local-player/champion-mastery",
+   "body": {
+    "next": {
+     "next": {
+      "next": {
+       "next": {
+        "next": {
+         "next": {
+          "next": {
+           "next": {
+            "next": {
+             "next": {
+              "next": {
+               "next": {
+                "password": "MUST-NOT-LEAVE",
+                "keep": 1
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "out": {
+    "next": {
+     "next": {
+      "next": {
+       "next": {
+        "next": {
+         "next": {
+          "next": {
+           "next": {
+            "next": {
+             "next": {
+              "next": {
+               "next": {
+                "keep": 1
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "path": "/lol-champion-mastery/v1/local-player/champion-mastery",
+   "body": {
+    "next": {
+     "next": {
+      "next": {
+       "next": {
+        "next": {
+         "next": {
+          "next": {
+           "next": {
+            "next": {
+             "next": {
+              "next": {
+               "next": {
+                "next": {
+                 "password": "MUST-NOT-LEAVE",
+                 "keep": 1
+                }
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "out": {
+    "next": {
+     "next": {
+      "next": {
+       "next": {
+        "next": {
+         "next": {
+          "next": {
+           "next": {
+            "next": {
+             "next": {
+              "next": {
+               "next": {
+                "next": {
+                 "password": "MUST-NOT-LEAVE",
+                 "keep": 1
+                }
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "path": "/lol-champion-mastery/v1/local-player/champion-mastery",
+   "body": {
+    "next": {
+     "next": {
+      "next": {
+       "next": {
+        "next": {
+         "next": {
+          "next": {
+           "next": {
+            "next": {
+             "next": {
+              "next": {
+               "next": {
+                "next": {
+                 "next": {
+                  "password": "MUST-NOT-LEAVE",
+                  "keep": 1
+                 }
+                }
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "out": {
+    "next": {
+     "next": {
+      "next": {
+       "next": {
+        "next": {
+         "next": {
+          "next": {
+           "next": {
+            "next": {
+             "next": {
+              "next": {
+               "next": {
+                "next": {
+                 "next": {
+                  "password": "MUST-NOT-LEAVE",
+                  "keep": 1
+                 }
+                }
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "path": "/lol-summoner/v1/current-summoner",
+   "body": 5,
+   "out": 5
+  },
+  {
+   "path": "/lol-summoner/v1/current-summoner",
+   "body": true,
+   "out": true
+  },
+  {
+   "path": "/lol-summoner/v1/current-summoner",
+   "body": null,
+   "out": null
+  }
+ ],
+ "minimizeGame": [
+  {
+   "body": [
+    {
+     "championName": "Ahri",
+     "rawChampionName": "game_character_displayname_Ahri",
+     "team": "ORDER",
+     "level": 6,
+     "summonerName": "n",
+     "riotId": "a#b",
+     "scores": {
+      "kills": 3
+     },
+     "items": [
+      {
+       "itemID": 1056,
+       "displayName": "Doran's Ring",
+       "price": 400
+      },
+      {
+       "slot": 1
+      },
+      7
+     ],
+     "runes": {}
+    },
+    {
+     "championName": "Zed"
+    },
+    {
+     "items": "no",
+     "team": "CHAOS"
+    },
+    5,
+    null
+   ],
+   "out": [
+    {
+     "championName": "Ahri",
+     "rawChampionName": "game_character_displayname_Ahri",
+     "team": "ORDER",
+     "level": 6,
+     "items": [
+      {
+       "itemID": 1056
+      },
+      {},
+      {}
+     ]
+    },
+    {
+     "championName": "Zed",
+     "items": []
+    },
+    {
+     "team": "CHAOS",
+     "items": []
+    },
+    {
+     "items": []
+    },
+    {
+     "items": []
+    }
+   ]
+  },
+  {
+   "body": [
+    {
+     "championName": "c0",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      },
+      {
+       "itemID": 12
+      },
+      {
+       "itemID": 13
+      }
+     ]
+    },
+    {
+     "championName": "c1",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      },
+      {
+       "itemID": 12
+      },
+      {
+       "itemID": 13
+      }
+     ]
+    },
+    {
+     "championName": "c2",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      },
+      {
+       "itemID": 12
+      },
+      {
+       "itemID": 13
+      }
+     ]
+    },
+    {
+     "championName": "c3",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      },
+      {
+       "itemID": 12
+      },
+      {
+       "itemID": 13
+      }
+     ]
+    },
+    {
+     "championName": "c4",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      },
+      {
+       "itemID": 12
+      },
+      {
+       "itemID": 13
+      }
+     ]
+    },
+    {
+     "championName": "c5",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      },
+      {
+       "itemID": 12
+      },
+      {
+       "itemID": 13
+      }
+     ]
+    },
+    {
+     "championName": "c6",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      },
+      {
+       "itemID": 12
+      },
+      {
+       "itemID": 13
+      }
+     ]
+    },
+    {
+     "championName": "c7",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      },
+      {
+       "itemID": 12
+      },
+      {
+       "itemID": 13
+      }
+     ]
+    },
+    {
+     "championName": "c8",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      },
+      {
+       "itemID": 12
+      },
+      {
+       "itemID": 13
+      }
+     ]
+    },
+    {
+     "championName": "c9",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      },
+      {
+       "itemID": 12
+      },
+      {
+       "itemID": 13
+      }
+     ]
+    },
+    {
+     "championName": "c10",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      },
+      {
+       "itemID": 12
+      },
+      {
+       "itemID": 13
+      }
+     ]
+    },
+    {
+     "championName": "c11",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      },
+      {
+       "itemID": 12
+      },
+      {
+       "itemID": 13
+      }
+     ]
+    },
+    {
+     "championName": "c12",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      },
+      {
+       "itemID": 12
+      },
+      {
+       "itemID": 13
+      }
+     ]
+    },
+    {
+     "championName": "c13",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      },
+      {
+       "itemID": 12
+      },
+      {
+       "itemID": 13
+      }
+     ]
+    }
+   ],
+   "out": [
+    {
+     "championName": "c0",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      }
+     ]
+    },
+    {
+     "championName": "c1",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      }
+     ]
+    },
+    {
+     "championName": "c2",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      }
+     ]
+    },
+    {
+     "championName": "c3",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      }
+     ]
+    },
+    {
+     "championName": "c4",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      }
+     ]
+    },
+    {
+     "championName": "c5",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      }
+     ]
+    },
+    {
+     "championName": "c6",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      }
+     ]
+    },
+    {
+     "championName": "c7",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      }
+     ]
+    },
+    {
+     "championName": "c8",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      }
+     ]
+    },
+    {
+     "championName": "c9",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      }
+     ]
+    },
+    {
+     "championName": "c10",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      }
+     ]
+    },
+    {
+     "championName": "c11",
+     "items": [
+      {
+       "itemID": 0
+      },
+      {
+       "itemID": 1
+      },
+      {
+       "itemID": 2
+      },
+      {
+       "itemID": 3
+      },
+      {
+       "itemID": 4
+      },
+      {
+       "itemID": 5
+      },
+      {
+       "itemID": 6
+      },
+      {
+       "itemID": 7
+      },
+      {
+       "itemID": 8
+      },
+      {
+       "itemID": 9
+      },
+      {
+       "itemID": 10
+      },
+      {
+       "itemID": 11
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "body": [],
+   "out": []
+  },
+  {
+   "body": {},
+   "out": null
+  },
+  {
+   "body": null,
+   "out": null
+  },
+  {
+   "body": "x",
+   "out": null
+  },
+  {
+   "body": {
+    "0": {
+     "championName": "x"
+    }
+   },
+   "out": null
+  }
+ ],
+ "siteAllowed": [
+  {
+   "site": "https://compcue.aflince.com",
+   "ok": true
+  },
+  {
+   "site": "https://example.com:8443",
+   "ok": true
+  },
+  {
+   "site": "http://example.com",
+   "ok": false
+  },
+  {
+   "site": "http://127.0.0.1:8790",
+   "ok": true
+  },
+  {
+   "site": "http://localhost:5173",
+   "ok": true
+  },
+  {
+   "site": "http://[::1]:80",
+   "ok": true
+  },
+  {
+   "site": "http://127.0.0.2",
+   "ok": false
+  },
+  {
+   "site": "http://localhost.example.com",
+   "ok": false
+  },
+  {
+   "site": "https://user:pw@example.com",
+   "ok": false
+  },
+  {
+   "site": "https://user@example.com",
+   "ok": false
+  },
+  {
+   "site": "ftp://example.com",
+   "ok": false
+  },
+  {
+   "site": "ws://127.0.0.1",
+   "ok": false
+  },
+  {
+   "site": "wss://example.com",
+   "ok": false
+  },
+  {
+   "site": "",
+   "ok": false
+  },
+  {
+   "site": "example.com",
+   "ok": false
+  },
+  {
+   "site": "HTTPS://EXAMPLE.COM",
+   "ok": true
+  },
+  {
+   "site": "http://LOCALHOST:1",
+   "ok": true
+  },
+  {
+   "site": "file:///etc/passwd",
+   "ok": false
+  },
+  {
+   "site": "javascript:alert(1)",
+   "ok": false
+  },
+  {
+   "site": "https://",
+   "ok": false
+  },
+  {
+   "site": "http://0.0.0.0",
+   "ok": false
+  },
+  {
+   "site": "http://127.1",
+   "ok": true
+  }
+ ],
+ "toLink": [
+  {
+   "raw": "{\"t\":\"get\",\"id\":1,\"path\":\"/lol-gameflow/v1/gameflow-phase\"}",
+   "out": {
+    "t": "get",
+    "id": 1,
+    "path": "/lol-gameflow/v1/gameflow-phase"
+   }
+  },
+  {
+   "raw": "{\"t\":\"get\",\"id\":1.5,\"path\":\"/x\"}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"get\",\"id\":\"1\",\"path\":\"/x\"}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"get\",\"id\":1}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"get\",\"path\":\"/x\"}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"get\",\"id\":2,\"path\":\"/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
+   "out": {
+    "t": "get",
+    "id": 2,
+    "path": "/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  },
+  {
+   "raw": "{\"t\":\"get\",\"id\":2,\"path\":\"/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"get\",\"id\":-3,\"path\":\"\",\"extra\":true}",
+   "out": {
+    "t": "get",
+    "id": -3,
+    "path": ""
+   }
+  },
+  {
+   "raw": "{\"t\":\"get\",\"id\":2,\"path\":5}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"get\",\"id\":1e3,\"path\":\"/x\"}",
+   "out": {
+    "t": "get",
+    "id": 1000,
+    "path": "/x"
+   }
+  },
+  {
+   "raw": "{\"t\":\"get\",\"id\":1.0,\"path\":\"/x\"}",
+   "out": {
+    "t": "get",
+    "id": 1,
+    "path": "/x"
+   }
+  },
+  {
+   "raw": "{\"t\":\"get\",\"id\":null,\"path\":\"/x\"}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"bye\",\"reason\":\"update\"}",
+   "out": {
+    "t": "bye",
+    "reason": "update"
+   }
+  },
+  {
+   "raw": "{\"t\":\"bye\",\"reason\":\"update\",\"minVersion\":\"0.4.0\"}",
+   "out": {
+    "t": "bye",
+    "reason": "update",
+    "minVersion": "0.4.0"
+   }
+  },
+  {
+   "raw": "{\"t\":\"bye\",\"reason\":\"update\",\"minVersion\":5}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"bye\"}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"bye\",\"reason\":\"rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr\"}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"bye\",\"reason\":\"replaced\",\"minVersion\":\"99999999999999999999999999999999999999999\"}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"bye\",\"reason\":5}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"pong\"}",
+   "out": {
+    "t": "pong"
+   }
+  },
+  {
+   "raw": "{\"t\":\"pong\",\"x\":1}",
+   "out": {
+    "t": "pong"
+   }
+  },
+  {
+   "raw": "{\"t\":\"ping\"}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"game\",\"id\":7}",
+   "out": {
+    "t": "game",
+    "id": 7
+   }
+  },
+  {
+   "raw": "{\"t\":\"game\"}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"game\",\"id\":\"7\"}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"game\",\"id\":7,\"path\":\"/liveclientdata/allgamedata\"}",
+   "out": {
+    "t": "game",
+    "id": 7
+   }
+  },
+  {
+   "raw": "{\"t\":\"latest\",\"version\":\"0.5.0\"}",
+   "out": {
+    "t": "latest",
+    "version": "0.5.0"
+   }
+  },
+  {
+   "raw": "{\"t\":\"latest\",\"version\":\"0.5\"}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"latest\",\"version\":\"0.5.0-beta\"}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"latest\",\"version\":\"v0.5.0\"}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"latest\",\"version\":\"10.20.30\"}",
+   "out": {
+    "t": "latest",
+    "version": "10.20.30"
+   }
+  },
+  {
+   "raw": "{\"t\":\"latest\",\"version\":\"0.5.0\\n\"}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"latest\",\"version\":5}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"latest\"}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"post\",\"id\":1,\"path\":\"/x\"}",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"hello\",\"v\":1}",
+   "out": null
+  },
+  {
+   "raw": "{\"T\":\"pong\"}",
+   "out": null
+  },
+  {
+   "raw": "{}",
+   "out": null
+  },
+  {
+   "raw": "[]",
+   "out": null
+  },
+  {
+   "raw": "null",
+   "out": null
+  },
+  {
+   "raw": "\"pong\"",
+   "out": null
+  },
+  {
+   "raw": "5",
+   "out": null
+  },
+  {
+   "raw": "",
+   "out": null
+  },
+  {
+   "raw": "not json",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":\"pong\"",
+   "out": null
+  },
+  {
+   "raw": "{\"t\":[\"pong\"]}",
+   "out": null
+  },
+  {
+   "raw": " {\"t\":\"pong\"} ",
+   "out": {
+    "t": "pong"
+   }
+  }
+ ],
+ "frame": [
+  {
+   "raw": "[8,\"OnJsonApiEvent_lol-champ-select_v1_session\",{\"uri\":\"/lol-champ-select/v1/session\",\"eventType\":\"Update\",\"data\":{\"gameId\":7}}]",
+   "out": {
+    "uri": "/lol-champ-select/v1/session",
+    "eventType": "Update",
+    "data": {
+     "gameId": 7
+    }
+   }
+  },
+  {
+   "raw": "[8,\"x\",{\"uri\":\"/lol-gameflow/v1/gameflow-phase\",\"data\":\"ChampSelect\"}]",
+   "out": {
+    "uri": "/lol-gameflow/v1/gameflow-phase",
+    "eventType": "Update",
+    "data": "ChampSelect"
+   }
+  },
+  {
+   "raw": "[8,\"x\",{\"uri\":\"/a\",\"eventType\":5,\"data\":null}]",
+   "out": {
+    "uri": "/a",
+    "eventType": "Update",
+    "data": null
+   }
+  },
+  {
+   "raw": "[8,\"x\",{\"uri\":\"/a\",\"eventType\":\"Delete\"}]",
+   "out": {
+    "uri": "/a",
+    "eventType": "Delete"
+   }
+  },
+  {
+   "raw": "[8,\"x\",{\"eventType\":\"Update\"}]",
+   "out": null
+  },
+  {
+   "raw": "[8,\"x\",{\"uri\":5}]",
+   "out": null
+  },
+  {
+   "raw": "[8,\"x\"]",
+   "out": null
+  },
+  {
+   "raw": "[8,\"x\",null]",
+   "out": null
+  },
+  {
+   "raw": "[8,\"x\",\"text\"]",
+   "out": null
+  },
+  {
+   "raw": "[5,\"x\",{\"uri\":\"/a\"}]",
+   "out": null
+  },
+  {
+   "raw": "[0,\"welcome\"]",
+   "out": null
+  },
+  {
+   "raw": "[]",
+   "out": null
+  },
+  {
+   "raw": "{}",
+   "out": null
+  },
+  {
+   "raw": "",
+   "out": null
+  },
+  {
+   "raw": "x",
+   "out": null
+  },
+  {
+   "raw": "[8,\"x\",[1]]",
+   "out": null
+  }
+ ],
+ "lockfile": [
+  {
+   "text": "LeagueClient:1234:54321:pw123:https",
+   "out": {
+    "port": 54321,
+    "password": "pw123"
+   }
+  },
+  {
+   "text": "LeagueClient:1234:54321:pw123:https\n",
+   "out": {
+    "port": 54321,
+    "password": "pw123"
+   }
+  },
+  {
+   "text": "LeagueClient:1234:54321:pw123",
+   "out": null
+  },
+  {
+   "text": "LeagueClient:x:54321:pw:https",
+   "out": {
+    "port": 54321,
+    "password": "pw"
+   }
+  },
+  {
+   "text": "LeagueClient:1:0:pw:https",
+   "out": null
+  },
+  {
+   "text": "LeagueClient:1:abc:pw:https",
+   "out": null
+  },
+  {
+   "text": "LeagueClient:1:8080::https",
+   "out": null
+  },
+  {
+   "text": "",
+   "out": null
+  },
+  {
+   "text": "a:b:c:d:e",
+   "out": null
+  },
+  {
+   "text": "LeagueClient:1:8080:pw:https:extra",
+   "out": {
+    "port": 8080,
+    "password": "pw"
+   }
+  },
+  {
+   "text": "  LeagueClient:9:1:p:http  ",
+   "out": {
+    "port": 1,
+    "password": "p"
+   }
+  }
+ ],
+ "commandLine": [
+  {
+   "cmd": "\"C:/Riot Games/League of Legends/LeagueClientUx.exe\" \"--riotclient-auth-token=x\" \"--app-port=54321\" \"--remoting-auth-token=abcDEF_-123\" \"--install-directory=C:\\Riot Games\\League of Legends\" \"--app-name=LeagueClient\"",
+   "out": {
+    "port": 54321,
+    "password": "abcDEF_-123",
+    "installDir": "C:\\Riot"
+   }
+  },
+  {
+   "cmd": "/Applications/League of Legends.app/Contents/LoL/LeagueClientUx --app-port=1234 --remoting-auth-token=tok --install-directory=/Applications/League of Legends.app/Contents/LoL --x",
+   "out": {
+    "port": 1234,
+    "password": "tok",
+    "installDir": "/Applications/League"
+   }
+  },
+  {
+   "cmd": "LeagueClientUx --app-port=1234",
+   "out": null
+  },
+  {
+   "cmd": "LeagueClientUx --remoting-auth-token=tok",
+   "out": null
+  },
+  {
+   "cmd": "LeagueClientUx --app-port=abc --remoting-auth-token=tok",
+   "out": null
+  },
+  {
+   "cmd": "LeagueClientUx --app-port=0 --remoting-auth-token=tok",
+   "out": null
+  },
+  {
+   "cmd": "LeagueClientUx --app-port=\"77\" --remoting-auth-token=\"a b\"",
+   "out": {
+    "port": 77,
+    "password": "a b",
+    "installDir": null
+   }
+  },
+  {
+   "cmd": "LeagueClientUx --app-port=5 --remoting-auth-token=t --install-directory=",
+   "out": {
+    "port": 5,
+    "password": "t",
+    "installDir": null
+   }
+  },
+  {
+   "cmd": "",
+   "out": null
+  },
+  {
+   "cmd": "LeagueClientUx --app-port= --remoting-auth-token=t",
+   "out": null
+  }
+ ],
+ "normalizeCode": [
+  {
+   "s": "KDA-4F7Q",
+   "out": "KDA-4F7Q"
+  },
+  {
+   "s": "kda4f7q",
+   "out": "KDA-4F7Q"
+  },
+  {
+   "s": " k d a - 4 f 7 q ",
+   "out": "KDA-4F7Q"
+  },
+  {
+   "s": "KDA-4F7",
+   "out": ""
+  },
+  {
+   "s": "KDA-4F7QX",
+   "out": ""
+  },
+  {
+   "s": "",
+   "out": ""
+  },
+  {
+   "s": "KDÄ-4F7Q",
+   "out": ""
+  },
+  {
+   "s": "kda_4f7q",
+   "out": "KDA-4F7Q"
+  },
+  {
+   "s": "1234567",
+   "out": "123-4567"
+  }
+ ],
+ "olderThan": [
+  {
+   "a": "0.4.4",
+   "b": "0.5.0",
+   "out": true
+  },
+  {
+   "a": "0.5.0",
+   "b": "0.5.0",
+   "out": false
+  },
+  {
+   "a": "0.5.1",
+   "b": "0.5.0",
+   "out": false
+  },
+  {
+   "a": "0.10.0",
+   "b": "0.9.9",
+   "out": false
+  },
+  {
+   "a": "1.0.0",
+   "b": "0.99.99",
+   "out": false
+  },
+  {
+   "a": "0.4",
+   "b": "0.4.1",
+   "out": true
+  },
+  {
+   "a": "0.4.4.9",
+   "b": "0.4.4",
+   "out": false
+  },
+  {
+   "a": "x",
+   "b": "0.0.1",
+   "out": true
+  },
+  {
+   "a": "",
+   "b": "",
+   "out": false
+  },
+  {
+   "a": "0.5.0",
+   "b": "0.5",
+   "out": false
+  },
+  {
+   "a": "2",
+   "b": "10",
+   "out": true
+  },
+  {
+   "a": "0.05.0",
+   "b": "0.5.0",
+   "out": false
+  }
+ ],
+ "mayUpdate": [
+  {
+   "state": "pairing",
+   "phase": null,
+   "ok": true
+  },
+  {
+   "state": "pairing",
+   "phase": "None",
+   "ok": true
+  },
+  {
+   "state": "pairing",
+   "phase": "Lobby",
+   "ok": true
+  },
+  {
+   "state": "pairing",
+   "phase": "Matchmaking",
+   "ok": true
+  },
+  {
+   "state": "pairing",
+   "phase": "ReadyCheck",
+   "ok": true
+  },
+  {
+   "state": "pairing",
+   "phase": "ChampSelect",
+   "ok": true
+  },
+  {
+   "state": "pairing",
+   "phase": "GameStart",
+   "ok": true
+  },
+  {
+   "state": "pairing",
+   "phase": "InProgress",
+   "ok": true
+  },
+  {
+   "state": "pairing",
+   "phase": "Reconnect",
+   "ok": true
+  },
+  {
+   "state": "pairing",
+   "phase": "WaitingForStats",
+   "ok": true
+  },
+  {
+   "state": "pairing",
+   "phase": "PreEndOfGame",
+   "ok": true
+  },
+  {
+   "state": "pairing",
+   "phase": "EndOfGame",
+   "ok": true
+  },
+  {
+   "state": "pairing",
+   "phase": "inprogress",
+   "ok": true
+  },
+  {
+   "state": "pairing",
+   "phase": "",
+   "ok": true
+  },
+  {
+   "state": "waiting",
+   "phase": null,
+   "ok": true
+  },
+  {
+   "state": "waiting",
+   "phase": "None",
+   "ok": true
+  },
+  {
+   "state": "waiting",
+   "phase": "Lobby",
+   "ok": true
+  },
+  {
+   "state": "waiting",
+   "phase": "Matchmaking",
+   "ok": true
+  },
+  {
+   "state": "waiting",
+   "phase": "ReadyCheck",
+   "ok": true
+  },
+  {
+   "state": "waiting",
+   "phase": "ChampSelect",
+   "ok": true
+  },
+  {
+   "state": "waiting",
+   "phase": "GameStart",
+   "ok": true
+  },
+  {
+   "state": "waiting",
+   "phase": "InProgress",
+   "ok": true
+  },
+  {
+   "state": "waiting",
+   "phase": "Reconnect",
+   "ok": true
+  },
+  {
+   "state": "waiting",
+   "phase": "WaitingForStats",
+   "ok": true
+  },
+  {
+   "state": "waiting",
+   "phase": "PreEndOfGame",
+   "ok": true
+  },
+  {
+   "state": "waiting",
+   "phase": "EndOfGame",
+   "ok": true
+  },
+  {
+   "state": "waiting",
+   "phase": "inprogress",
+   "ok": true
+  },
+  {
+   "state": "waiting",
+   "phase": "",
+   "ok": true
+  },
+  {
+   "state": "connecting",
+   "phase": null,
+   "ok": false
+  },
+  {
+   "state": "connecting",
+   "phase": "None",
+   "ok": false
+  },
+  {
+   "state": "connecting",
+   "phase": "Lobby",
+   "ok": false
+  },
+  {
+   "state": "connecting",
+   "phase": "Matchmaking",
+   "ok": false
+  },
+  {
+   "state": "connecting",
+   "phase": "ReadyCheck",
+   "ok": false
+  },
+  {
+   "state": "connecting",
+   "phase": "ChampSelect",
+   "ok": false
+  },
+  {
+   "state": "connecting",
+   "phase": "GameStart",
+   "ok": false
+  },
+  {
+   "state": "connecting",
+   "phase": "InProgress",
+   "ok": false
+  },
+  {
+   "state": "connecting",
+   "phase": "Reconnect",
+   "ok": false
+  },
+  {
+   "state": "connecting",
+   "phase": "WaitingForStats",
+   "ok": false
+  },
+  {
+   "state": "connecting",
+   "phase": "PreEndOfGame",
+   "ok": false
+  },
+  {
+   "state": "connecting",
+   "phase": "EndOfGame",
+   "ok": false
+  },
+  {
+   "state": "connecting",
+   "phase": "inprogress",
+   "ok": false
+  },
+  {
+   "state": "connecting",
+   "phase": "",
+   "ok": false
+  },
+  {
+   "state": "connected",
+   "phase": null,
+   "ok": false
+  },
+  {
+   "state": "connected",
+   "phase": "None",
+   "ok": true
+  },
+  {
+   "state": "connected",
+   "phase": "Lobby",
+   "ok": true
+  },
+  {
+   "state": "connected",
+   "phase": "Matchmaking",
+   "ok": false
+  },
+  {
+   "state": "connected",
+   "phase": "ReadyCheck",
+   "ok": false
+  },
+  {
+   "state": "connected",
+   "phase": "ChampSelect",
+   "ok": false
+  },
+  {
+   "state": "connected",
+   "phase": "GameStart",
+   "ok": false
+  },
+  {
+   "state": "connected",
+   "phase": "InProgress",
+   "ok": false
+  },
+  {
+   "state": "connected",
+   "phase": "Reconnect",
+   "ok": false
+  },
+  {
+   "state": "connected",
+   "phase": "WaitingForStats",
+   "ok": true
+  },
+  {
+   "state": "connected",
+   "phase": "PreEndOfGame",
+   "ok": true
+  },
+  {
+   "state": "connected",
+   "phase": "EndOfGame",
+   "ok": true
+  },
+  {
+   "state": "connected",
+   "phase": "inprogress",
+   "ok": true
+  },
+  {
+   "state": "connected",
+   "phase": "",
+   "ok": true
+  },
+  {
+   "state": "offline",
+   "phase": null,
+   "ok": false
+  },
+  {
+   "state": "offline",
+   "phase": "None",
+   "ok": false
+  },
+  {
+   "state": "offline",
+   "phase": "Lobby",
+   "ok": false
+  },
+  {
+   "state": "offline",
+   "phase": "Matchmaking",
+   "ok": false
+  },
+  {
+   "state": "offline",
+   "phase": "ReadyCheck",
+   "ok": false
+  },
+  {
+   "state": "offline",
+   "phase": "ChampSelect",
+   "ok": false
+  },
+  {
+   "state": "offline",
+   "phase": "GameStart",
+   "ok": false
+  },
+  {
+   "state": "offline",
+   "phase": "InProgress",
+   "ok": false
+  },
+  {
+   "state": "offline",
+   "phase": "Reconnect",
+   "ok": false
+  },
+  {
+   "state": "offline",
+   "phase": "WaitingForStats",
+   "ok": false
+  },
+  {
+   "state": "offline",
+   "phase": "PreEndOfGame",
+   "ok": false
+  },
+  {
+   "state": "offline",
+   "phase": "EndOfGame",
+   "ok": false
+  },
+  {
+   "state": "offline",
+   "phase": "inprogress",
+   "ok": false
+  },
+  {
+   "state": "offline",
+   "phase": "",
+   "ok": false
+  },
+  {
+   "state": "update",
+   "phase": null,
+   "ok": false
+  },
+  {
+   "state": "update",
+   "phase": "None",
+   "ok": false
+  },
+  {
+   "state": "update",
+   "phase": "Lobby",
+   "ok": false
+  },
+  {
+   "state": "update",
+   "phase": "Matchmaking",
+   "ok": false
+  },
+  {
+   "state": "update",
+   "phase": "ReadyCheck",
+   "ok": false
+  },
+  {
+   "state": "update",
+   "phase": "ChampSelect",
+   "ok": false
+  },
+  {
+   "state": "update",
+   "phase": "GameStart",
+   "ok": false
+  },
+  {
+   "state": "update",
+   "phase": "InProgress",
+   "ok": false
+  },
+  {
+   "state": "update",
+   "phase": "Reconnect",
+   "ok": false
+  },
+  {
+   "state": "update",
+   "phase": "WaitingForStats",
+   "ok": false
+  },
+  {
+   "state": "update",
+   "phase": "PreEndOfGame",
+   "ok": false
+  },
+  {
+   "state": "update",
+   "phase": "EndOfGame",
+   "ok": false
+  },
+  {
+   "state": "update",
+   "phase": "inprogress",
+   "ok": false
+  },
+  {
+   "state": "update",
+   "phase": "",
+   "ok": false
+  },
+  {
+   "state": "stopped",
+   "phase": null,
+   "ok": false
+  },
+  {
+   "state": "stopped",
+   "phase": "None",
+   "ok": false
+  },
+  {
+   "state": "stopped",
+   "phase": "Lobby",
+   "ok": false
+  },
+  {
+   "state": "stopped",
+   "phase": "Matchmaking",
+   "ok": false
+  },
+  {
+   "state": "stopped",
+   "phase": "ReadyCheck",
+   "ok": false
+  },
+  {
+   "state": "stopped",
+   "phase": "ChampSelect",
+   "ok": false
+  },
+  {
+   "state": "stopped",
+   "phase": "GameStart",
+   "ok": false
+  },
+  {
+   "state": "stopped",
+   "phase": "InProgress",
+   "ok": false
+  },
+  {
+   "state": "stopped",
+   "phase": "Reconnect",
+   "ok": false
+  },
+  {
+   "state": "stopped",
+   "phase": "WaitingForStats",
+   "ok": false
+  },
+  {
+   "state": "stopped",
+   "phase": "PreEndOfGame",
+   "ok": false
+  },
+  {
+   "state": "stopped",
+   "phase": "EndOfGame",
+   "ok": false
+  },
+  {
+   "state": "stopped",
+   "phase": "inprogress",
+   "ok": false
+  },
+  {
+   "state": "stopped",
+   "phase": "",
+   "ok": false
+  }
+ ]
+}

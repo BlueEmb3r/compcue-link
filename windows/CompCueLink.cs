@@ -1,26 +1,30 @@
-// CompCue Link for Windows: the icon next to the clock.
+// CompCue Link for Windows: the icon next to the clock. One file to run: CompCueLink.exe.
 //
-// It is only the face of the helper. It starts compcue-link.exe (next to it in the package) without a window, keeps
-// it running, and shows what the helper writes to status.json: waiting for League, connected, or a code to confirm.
-// It never talks to the League client or to the site itself.
+// It is only the face of the helper. It starts compcue-link.exe (the small program that reads the League client)
+// without a window, keeps it running, and shows what the helper writes to status.json: waiting for League, connected,
+// or a code to confirm. It never talks to the League client or to the site itself.
 //
 // The site's "Connect this PC" button opens  compcue-link:setup?key=<one-time key>  which starts this program with
 // that address. It asks the player first, then lets the helper trade the key for this computer's token.
 //
-// Plain C# 5 on the .NET Framework every Windows 10 and 11 already has, so the package carries no runtime:
-//   csc /target:winexe /out:CompCueLink.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.IO.Compression.FileSystem.dll /r:System.IO.Compression.dll CompCueLink.cs
+// Two ways to get it:
+// - the Microsoft Store package: the Store installs and updates it, Windows starts it, and the helper is a file
+//   next to this program in the package.
+// - CompCueLink.exe from the GitHub release: the helper is inside this file. Opened from anywhere (the Downloads
+//   folder), it puts itself in %LOCALAPPDATA%\CompCue, starts from there, and from then on does what the package
+//   gets from Windows: the compcue-link: button for this user, a Start menu entry, starting with Windows (the menu
+//   switches it off), and updates from the release when League is closed. The menu also removes it again.
 //
-// Two ways to get it: the Microsoft Store package (the Store updates it, Windows starts it, the site's button reaches
-// it through the package) and CompCueLink-windows.zip from the GitHub release (extract it anywhere you can write).
-// The zip copy does what the package does for itself: it registers the compcue-link: button for this user, starts with
-// Windows (the menu switches it off), and updates itself from the release when League is closed.
+// Plain C# 5 on the .NET Framework every Windows 10 and 11 already has, so nothing else is needed:
+//   csc /target:winexe /out:CompCueLink.exe /resource:compcue-link.exe,compcue-link.exe /r:System.Windows.Forms.dll
+//       /r:System.Drawing.dll /r:System.Web.Extensions.dll CompCueLink.cs Version.cs
+// Version.cs is one line the build writes: [assembly: System.Reflection.AssemblyVersion("0.5.0.0")]
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Globalization;
-using System.IO.Compression;
 using System.Net;
 using System.Security.Cryptography;
 using Microsoft.Win32;
@@ -59,6 +63,11 @@ static class Paths
     public static readonly string ReleaseFiles = Loopback.IsMatch(Environment.GetEnvironmentVariable("COMPCUE_RELEASES") ?? "")
         ? Environment.GetEnvironmentVariable("COMPCUE_RELEASES") : Releases + "/download";
     public static readonly string Exe = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CompCueLink.exe");
+    /// Where the copy from the release lives once it has been opened once.
+    public static readonly string InstallDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CompCue");
+    public static readonly string InstalledExe = Path.Combine(InstallDir, "CompCueLink.exe");
+    public static readonly bool Installed = string.Equals(AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\'), InstallDir, StringComparison.OrdinalIgnoreCase);
+    public static readonly string Shortcut = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "CompCue Link.lnk");
     /// True inside the Microsoft Store package: the Store installs, starts and updates that copy.
     public static readonly bool Packaged = AppDomain.CurrentDomain.BaseDirectory.IndexOf("\\WindowsApps\\", StringComparison.OrdinalIgnoreCase) >= 0;
     public static readonly Regex Version = new Regex(@"^\d+\.\d+\.\d+$");
@@ -81,12 +90,15 @@ static class Program
             if (k.Success && Paths.Key.IsMatch(k.Groups[1].Value)) key = k.Groups[1].Value;
             if (s.Success) { string v = Uri.UnescapeDataString(s.Groups[1].Value); if (Paths.Loopback.IsMatch(v)) site = v; }
         }
+        if (!Paths.Packaged && Array.IndexOf(args, "--remove") >= 0) { Setup.Remove(); return 0; }
+        // the copy from the release, opened from wherever it was downloaded: put it in its own folder and start it there
+        if (!Paths.Packaged && !Paths.Installed) return Setup.Install(args);
+        if (!Paths.Packaged) Setup.EnsureHelper();
         if (!File.Exists(Paths.Helper))
         {
-            // started from inside the zip (Windows opens it as a folder): the helper is not next to it
-            MessageBox.Show(Words.T("Extract the whole zip first (right-click, Extract All), then open CompCueLink.exe from the new folder.",
-                                    "Primero extrae todo el zip (clic derecho, Extraer todo) y luego abre CompCueLink.exe desde la carpeta nueva."),
-                "CompCue Link", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(Words.T("CompCue Link could not start: its helper is missing. Download CompCueLink.exe again.",
+                                    "CompCue Link no pudo iniciar: falta su ayudante. Descarga CompCueLink.exe otra vez."),
+                "CompCue Link", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return 1;
         }
         string said = key != null ? Connect(key, site) : null;
@@ -101,6 +113,10 @@ static class Program
             {
                 // the copy that is already running shows the result in its own menu
                 if (said != null) MessageBox.Show(said, "CompCue Link", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                else if (key == null && !afterUpdate)
+                    MessageBox.Show(Words.T("CompCue Link is already running. Its icon is next to the clock (click the small arrow there if you do not see it).",
+                                            "CompCue Link ya está abierto. Su ícono está junto al reloj (haz clic en la flechita si no lo ves)."),
+                        "CompCue Link", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return 0;
             }
             Application.Run(new Tray(site, said));
@@ -134,6 +150,123 @@ static class Program
             }
         }
         catch { return Words.T("CompCue Link could not start.", "CompCue Link no pudo iniciar."); }
+    }
+}
+
+/// The copy from the release looks after itself: where it lives, and the helper it carries inside.
+static class Setup
+{
+    /// Stop the tray program and helper that run from this folder (never this process).
+    public static void StopAt(string dir)
+    {
+        int me = Process.GetCurrentProcess().Id;
+        foreach (string name in new string[] { "CompCueLink", "compcue-link" })
+        {
+            try
+            {
+                foreach (Process p in Process.GetProcessesByName(name))
+                {
+                    try
+                    {
+                        if (p.Id != me && p.MainModule.FileName.StartsWith(dir.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase)) { p.Kill(); p.WaitForExit(5000); }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+        }
+    }
+
+    static Version VersionOf(string exe) { try { return AssemblyName.GetAssemblyName(exe).Version; } catch { return null; } }
+
+    /// Opened from the Downloads folder (or anywhere): copy this program to its own folder, unless a newer one is
+    /// already there, and start that copy. Written as a new file, so it is this computer's own file from then on.
+    public static int Install(string[] args)
+    {
+        try
+        {
+            Directory.CreateDirectory(Paths.InstallDir);
+            string mine = Assembly.GetExecutingAssembly().Location, target = Paths.InstalledExe;
+            Version here = VersionOf(mine), there = File.Exists(target) ? VersionOf(target) : null;
+            if (!File.Exists(target) || there == null || (here != null && there < here))
+            {
+                StopAt(Paths.InstallDir);
+                string old = Path.Combine(Paths.InstallDir, "CompCueLink.old.exe");
+                if (File.Exists(target)) { try { File.Delete(old); } catch { } File.Move(target, old); }
+                File.WriteAllBytes(target, File.ReadAllBytes(mine));
+            }
+            List<string> quoted = new List<string>();
+            foreach (string a in args) quoted.Add("\"" + a.Replace("\"", "") + "\"");
+            ProcessStartInfo i = new ProcessStartInfo(target, string.Join(" ", quoted.ToArray())); i.UseShellExecute = false;
+            Process.Start(i).Dispose();
+            return 0;
+        }
+        catch (Exception e)
+        {
+            MessageBox.Show(Words.T("CompCue Link could not set itself up: ", "CompCue Link no se pudo instalar: ") + e.Message, "CompCue Link", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return 1;
+        }
+    }
+
+    /// The helper this program carries: written next to it when it is missing or not the same one.
+    public static void EnsureHelper()
+    {
+        try
+        {
+            using (Stream r = Assembly.GetExecutingAssembly().GetManifestResourceStream("compcue-link.exe"))
+            {
+                if (r == null) return; // built without it: the helper is a file next to this program
+                byte[] want = new byte[r.Length];
+                int at = 0, n;
+                while (at < want.Length && (n = r.Read(want, at, want.Length - at)) > 0) at += n;
+                if (File.Exists(Paths.Helper))
+                {
+                    byte[] have = File.ReadAllBytes(Paths.Helper);
+                    bool same = have.Length == want.Length;
+                    for (int k = 0; same && k < have.Length; k++) same = have[k] == want[k];
+                    if (same) return;
+                    // a helper from the version before is still running until its tray program is replaced: stop it
+                    foreach (Process p in Process.GetProcessesByName("compcue-link"))
+                        try { if (string.Equals(p.MainModule.FileName, Paths.Helper, StringComparison.OrdinalIgnoreCase)) { p.Kill(); p.WaitForExit(5000); } } catch { }
+                }
+                File.WriteAllBytes(Paths.Helper, want);
+            }
+        }
+        catch { }
+    }
+
+    /// Everything the copy from the release put on this computer, gone: `CompCueLink.exe --remove` or the menu.
+    public static void Remove()
+    {
+        StopAt(Paths.InstallDir);
+        try { using (RegistryKey k = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run", true)) if (k != null) k.DeleteValue("CompCueLink", false); } catch { }
+        try { Registry.CurrentUser.DeleteSubKeyTree("Software\\Classes\\compcue-link", false); } catch { }
+        try { File.Delete(Paths.Shortcut); } catch { }
+        try { Directory.Delete(Paths.Dir, true); } catch { }
+        if (!Paths.InstallDir.EndsWith("\\CompCue", StringComparison.OrdinalIgnoreCase) || !Directory.Exists(Paths.InstallDir)) return;
+        // a running program cannot delete itself: a hidden command removes the folder a moment after this one has gone
+        try
+        {
+            ProcessStartInfo i = new ProcessStartInfo("cmd.exe", "/c ping -n 3 127.0.0.1 >nul & rmdir /s /q \"" + Paths.InstallDir + "\"");
+            i.UseShellExecute = false; i.CreateNoWindow = true; i.WorkingDirectory = Path.GetTempPath();
+            Process.Start(i).Dispose();
+        }
+        catch { }
+    }
+
+    /// A Start menu entry, so it can be found and started like any program.
+    public static void StartMenu()
+    {
+        try
+        {
+            Type t = Type.GetTypeFromProgID("WScript.Shell");
+            object shell = Activator.CreateInstance(t);
+            object link = t.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, new object[] { Paths.Shortcut });
+            link.GetType().InvokeMember("TargetPath", BindingFlags.SetProperty, null, link, new object[] { Paths.Exe });
+            link.GetType().InvokeMember("Description", BindingFlags.SetProperty, null, link, new object[] { "CompCue Link" });
+            link.GetType().InvokeMember("Save", BindingFlags.InvokeMethod, null, link, null);
+        }
+        catch { }
     }
 }
 
@@ -267,7 +400,7 @@ sealed class Tray : ApplicationContext
         try
         {
             Directory.CreateDirectory(Paths.Dir);
-            if (!File.Exists(mark)) { File.WriteAllText(mark, ""); SetStartsWithWindows(true); }
+            if (!File.Exists(mark)) { File.WriteAllText(mark, ""); SetStartsWithWindows(true); Setup.StartMenu(); }
             else if (StartsWithWindows()) SetStartsWithWindows(true); // keeps the path right if the folder moved
         }
         catch { }
@@ -281,7 +414,8 @@ sealed class Tray : ApplicationContext
     bool updating;
     volatile string staged;      // folder with the two checked program files, ready to go in
     DateTime updateAfter = DateTime.MinValue;
-    static readonly string[] Programs = new string[] { "CompCueLink.exe", "compcue-link.exe" };
+    // the helper is inside the tray program: the new copy writes its own helper when it starts
+    static readonly string[] Programs = new string[] { "CompCueLink.exe" };
 
     static void Note(string line)
     {
@@ -289,8 +423,7 @@ sealed class Tray : ApplicationContext
     }
 
     /// A newer release, only when League is closed (never during a queue, champ select or game).
-    /// The download comes from this project's own GitHub release, is checked against the release's SHA256SUMS, and only
-    /// the two program files are taken out of it.
+    /// The download comes from this project's own GitHub release and is checked against the release's SHA256SUMS.
     void MaybeUpdate()
     {
         if (Paths.Packaged || quitting || update == null || !Paths.Version.IsMatch(update)) return;
@@ -312,7 +445,7 @@ sealed class Tray : ApplicationContext
         t.IsBackground = true; t.Start();
     }
 
-    /// Download the release's zip, check it, and take the two programs out of it. Returns the folder, or null.
+    /// Download the release's CompCueLink.exe and check it against the release's SHA256SUMS. Returns its folder, or null.
     static string Fetch(string v)
     {
         ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072; // TLS 1.2
@@ -320,37 +453,27 @@ sealed class Tray : ApplicationContext
         string tmp = Path.Combine(Path.GetTempPath(), "CompCueLink-update-" + v);
         if (Directory.Exists(tmp)) Directory.Delete(tmp, true);
         Directory.CreateDirectory(tmp);
-        string zip = Path.Combine(tmp, "CompCueLink-windows.zip");
+        string file = Path.Combine(tmp, "CompCueLink.exe");
         string want = null;
         using (WebClient w = new WebClient())
         {
             foreach (string line in w.DownloadString(baseUrl + "SHA256SUMS").Split('\n'))
             {
                 string[] p = line.Trim().Split(new char[] { ' ', '*' }, StringSplitOptions.RemoveEmptyEntries);
-                if (p.Length == 2 && p[1] == "CompCueLink-windows.zip" && Regex.IsMatch(p[0], "^[0-9a-fA-F]{64}$")) want = p[0].ToLowerInvariant();
+                if (p.Length == 2 && p[1] == "CompCueLink.exe" && Regex.IsMatch(p[0], "^[0-9a-fA-F]{64}$")) want = p[0].ToLowerInvariant();
             }
-            if (want == null) { Note("Update to " + v + ": the release lists no Windows zip."); return null; }
-            w.DownloadFile(baseUrl + "CompCueLink-windows.zip", zip);
+            if (want == null) { Note("Update to " + v + ": the release lists no CompCueLink.exe."); return null; }
+            w.DownloadFile(baseUrl + "CompCueLink.exe", file);
         }
         string got;
-        using (SHA256 sha = SHA256.Create()) using (FileStream f = File.OpenRead(zip))
+        using (SHA256 sha = SHA256.Create()) using (FileStream f = File.OpenRead(file))
             got = BitConverter.ToString(sha.ComputeHash(f)).Replace("-", "").ToLowerInvariant();
         if (got != want) { Note("Update to " + v + ": the download does not match the release's checksum. Not installed."); return null; }
-        using (ZipArchive z = ZipFile.OpenRead(zip))
-        {
-            foreach (string n in Programs)
-            {
-                ZipArchiveEntry e = z.GetEntry(n);
-                if (e == null) { Note("Update to " + v + ": " + n + " is not in the zip."); return null; }
-                e.ExtractToFile(Path.Combine(tmp, n), true);
-            }
-        }
-        try { File.Delete(zip); } catch { }
         return tmp;
     }
 
-    /// Put the checked files in and start the new copy. A running program can be renamed but not overwritten, so what
-    /// is there becomes .old (removed at the next start). On any failure the old files go back.
+    /// Put the checked file in and start the new copy. A running program can be renamed but not overwritten, so what
+    /// is there becomes .old (removed at the next start). On any failure the old file goes back.
     void Swap(string from)
     {
         string dir = AppDomain.CurrentDomain.BaseDirectory;
@@ -497,6 +620,7 @@ sealed class Tray : ApplicationContext
             ToolStripMenuItem v = new ToolStripMenuItem(Words.T("Version ", "Versión ") + version); v.Enabled = false; menu.Items.Add(v);
         }
         menu.Items.Add(new ToolStripSeparator());
+        if (!Paths.Packaged) menu.Items.Add(Item(Words.T("Remove from this PC…", "Quitar de esta PC…"), delegate { Uninstall(); }));
         menu.Items.Add(Item(Words.T("Quit CompCue Link", "Salir de CompCue Link"), delegate { Quit(); }));
     }
     static ToolStripMenuItem Item(string text, EventHandler on) { ToolStripMenuItem i = new ToolStripMenuItem(text); i.Click += on; return i; }
@@ -509,6 +633,23 @@ sealed class Tray : ApplicationContext
     {
         // notepad is started from here (not through the shell) so that it sees the same files this program sees
         try { ProcessStartInfo i = new ProcessStartInfo("notepad.exe", "\"" + Path.Combine(Paths.Dir, "link.log") + "\""); i.UseShellExecute = false; Process.Start(i); } catch { }
+    }
+
+    /// The copy from the release removes itself: no start with Windows, no button, no Start menu entry, no files.
+    void Uninstall()
+    {
+        DialogResult yes = MessageBox.Show(
+            Words.T("Remove CompCue Link from this PC?\n\nIt stops, no longer starts with Windows, and its files and this PC's connection are deleted. You can also remove this PC on the CompCue page under \"Connected computers\".",
+                    "¿Quitar CompCue Link de esta PC?\n\nSe cierra, deja de iniciar con Windows y se borran sus archivos y la conexión de esta PC. También puedes quitar esta PC en la página de CompCue, en \"Computadoras conectadas\"."),
+            "CompCue Link", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
+        if (yes != DialogResult.Yes) return;
+        quitting = true;
+        timer.Stop();
+        try { if (helper != null && !helper.HasExited) { helper.Kill(); helper.WaitForExit(5000); } } catch { }
+        StopStrays();
+        Setup.Remove();
+        icon.Visible = false;
+        ExitThread();
     }
 
     void Quit()

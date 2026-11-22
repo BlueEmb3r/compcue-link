@@ -17,6 +17,8 @@ these things and nothing else (the list is fixed inside the program, in `src/sha
 - your own summoner name, region and language
 - the champions you own and your champion mastery
 - recent match history and ranked stats, for you and for players the client shows you
+- in Clash: your tournament's bracket, the roster you face next and the Riot ID of one of its players (what the
+  client shows you in the scouting phase), so CompCue can scout that team without you typing a name
 
 It never reads the game's memory, your chat, your friends list, your password or your payment details.
 It never reads other files on your computer. It cannot pick, ban, accept a match or click anything: it has no way to

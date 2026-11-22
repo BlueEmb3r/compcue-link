@@ -1,23 +1,16 @@
 {
   "name": "compcue-link",
-  "version": "0.4.4",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "license": "MIT",
   "description": "Read-only helper that connects your League of Legends client to CompCue.",
   "scripts": {
-    "start": "tsx connector/main.ts",
-    "typecheck": "tsc --noEmit",
-    "build": "bun build connector/main.ts --compile --minify --outfile dist/compcue-link"
-  },
-  "dependencies": {
-    "ws": "^8.23.0",
-    "zod": "^4.6.7"
+    "contract": "cargo test --manifest-path helper/Cargo.toml",
+    "build": "cargo build --release --manifest-path helper/Cargo.toml",
+    "smoke": "node test/smoke.mjs helper/target/release/compcue-link"
   },
   "devDependencies": {
-    "@types/node": "^26.6.6",
-    "@types/ws": "^8.18.2",
-    "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "ws": "^8.23.0"
   }
 }

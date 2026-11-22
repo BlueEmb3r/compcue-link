@@ -1,0 +1,38 @@
+# CompCue Link, the helper: one small native program for Windows and Mac (and Linux for the tests).
+# It replaced the Bun-compiled TypeScript helper in 0.5.0 (115 MB -> a few MB). The contract it keeps is in
+# src/contract.rs and is checked against the site's own TypeScript (contract.json, `cargo test`).
+[package]
+name = "compcue-link"
+version = "0.5.0"
+edition = "2021"
+license = "MIT"
+description = "Read-only helper that connects your League of Legends client to CompCue."
+publish = false
+
+[[bin]]
+name = "compcue-link"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1", default-features = false, features = ["rt", "macros", "time", "net", "sync", "process", "signal", "io-util"] }
+tokio-tungstenite = { version = "0.30", default-features = false, features = ["connect", "handshake", "rustls-tls-webpki-roots"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots", "json"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+url = "2"
+base64 = "0.22"
+gethostname = "1"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_System_Console"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

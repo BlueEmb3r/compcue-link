@@ -135,7 +135,7 @@ jobs:
           if (Get-Process CompCueLink, compcue-link -ErrorAction SilentlyContinue) { throw "still running after uninstall" }
           if (Get-AppxPackage AndrsLince.CompCueLink) { throw "still installed" }
           if (Test-Path "$env:LOCALAPPDATA\Packages\$($pkg.PackageFamilyName)") { "note: the package's data folder is still there" } else { "uninstall left nothing" }
-      - name: Run the zip copy: extract, open, connect with the site's button, switch itself off
+      - name: "Run the zip copy (extract, open, connect with the site's button)"
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'

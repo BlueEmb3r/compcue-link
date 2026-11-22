@@ -50,7 +50,8 @@ if (args.includes("--unpair")) { forget(); console.log("[CompCue Link] This comp
 // ---- log: the console, and a small file the menu bar app and bug reports can read ----------------------------
 try { if (statSync(logFile).size > 512 * 1024) rmSync(logFile); } catch { /* no log yet */ }
 const log = (line: string) => {
-  console.log(`[CompCue Link] ${line}`);
+  // with no console (the Windows build has none) there is nowhere to print: the file is the log
+  try { console.log(`[CompCue Link] ${line}`); } catch { /* no console */ }
   try { appendFileSync(logFile, `${new Date().toISOString()} ${line}\n`, { mode: 0o600 }); } catch { /* the console has it */ }
 };
 
@@ -76,7 +77,7 @@ if (!pairOnly) {
 function openBrowser(url: string) {
   if (process.env.COMPCUE_NO_BROWSER === "1") return;
   const [cmd, a] = process.platform === "win32" ? ["rundll32", ["url.dll,FileProtocolHandler", url]] : process.platform === "darwin" ? ["open", [url]] : ["xdg-open", [url]];
-  execFile(cmd as string, a as string[], () => { /* the code is printed too */ });
+  execFile(cmd as string, a as string[], { windowsHide: true }, () => { /* the code is printed too */ });
 }
 const post = (url: string, body: unknown) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(15_000) });
 const goodToken = (t: unknown): t is string => typeof t === "string" && /^[A-Za-z0-9_-]{20,200}$/.test(t);

@@ -38,6 +38,11 @@ compcue-link --site <url>    # another CompCue server (self-hosting, development
 compcue-link --version
 ```
 
+On Windows the Store app runs with no console window: a tray icon next to the clock shows the state, opens CompCue, shows
+the log and quits, and it starts with Windows (switch it off in Settings, Apps, Startup). The helper inside it is built
+without a console (`--windows-hide-console`) and writes to `%APPDATA%\CompCue\link.log`. The standalone
+`compcue-link-windows-x64.exe` is the command-line build and does open a console.
+
 The token is stored in `%APPDATA%\CompCue\link.json` (Windows) or `~/Library/Application Support/CompCue/link.json`
 (Mac). You can also remove this computer on the site under "Connected computers".
 

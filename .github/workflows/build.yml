@@ -40,9 +40,23 @@ jobs:
         with: { node-version: 22 }
       - uses: oven-sh/setup-bun@v2
       - run: npm ci --ignore-scripts
+      # the command-line build (a console, for --version, --status and the tests) ...
       - run: bun build connector/main.ts --compile --minify --outfile dist/compcue-link-windows-x64.exe
       - run: node test/smoke.mjs dist/compcue-link-windows-x64.exe
         shell: bash
+      # ... and the one the tray app starts: no console window at all (a Windows GUI program; it logs to link.log)
+      - run: bun build connector/main.ts --compile --minify --windows-hide-console --outfile dist/compcue-link-windows-x64-nowindow.exe
+      - run: node test/smoke.mjs dist/compcue-link-windows-x64-nowindow.exe
+        shell: bash
+      - name: Check that the packaged helper has no console
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $b = [IO.File]::ReadAllBytes("$PWD\dist\compcue-link-windows-x64-nowindow.exe")
+          $pe = [BitConverter]::ToInt32($b, 0x3C)
+          $subsystem = [BitConverter]::ToUInt16($b, $pe + 24 + 68)
+          if ($subsystem -ne 2) { throw "subsystem $subsystem: expected 2 (Windows GUI, no console)" }
+          "subsystem $subsystem (no console)"
       - name: Build the tray app and the Microsoft Store package
         shell: powershell
         run: |
@@ -51,7 +65,7 @@ jobs:
           $v = (Get-Content package.json -Raw | ConvertFrom-Json).version.Split('.')
           $version = "$([int]$v[0] + 1).$($v[1]).$($v[2]).0"
           New-Item -ItemType Directory -Force pkg\assets | Out-Null
-          Copy-Item dist\compcue-link-windows-x64.exe pkg\compcue-link.exe
+          Copy-Item dist\compcue-link-windows-x64-nowindow.exe pkg\compcue-link.exe
           & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /optimize /target:winexe /out:pkg\CompCueLink.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll windows\CompCueLink.cs
           if ($LASTEXITCODE) { throw "the tray app did not compile" }
           Copy-Item windows\assets\*.png pkg\assets\

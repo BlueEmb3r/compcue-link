@@ -261,6 +261,7 @@ sealed class Tray : ApplicationContext
         string mark = Path.Combine(Paths.Dir, "startup-set");
         try
         {
+            Directory.CreateDirectory(Paths.Dir);
             if (!File.Exists(mark)) { File.WriteAllText(mark, ""); SetStartsWithWindows(true); }
             else if (StartsWithWindows()) SetStartsWithWindows(true); // keeps the path right if the folder moved
         }

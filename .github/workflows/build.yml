@@ -168,6 +168,53 @@ jobs:
           if (-not $st -or $st.state -ne "connected") { throw "the zip copy did not connect" }
           if ($seen.problems.Count -ne 0) { throw "these did not hold: $($seen.problems -join '; ')" }
           if ($seen.writes -ne 0) { throw "the helper wrote to the client" }
+          "connected from the zip copy: paired, reads, refusals, zero writes"
+
+          # ---- an update: a release on this computer (the only stand-in the app accepts), League closed
+          $R = "$env:RUNNER_TEMP\release"; New-Item -ItemType Directory -Force "$R\v9.9.9" | Out-Null
+          Copy-Item dist\CompCueLink-windows.zip "$R\v9.9.9\"
+          $bad = "0" * 64
+          "$bad  CompCueLink-windows.zip" | Set-Content "$R\v9.9.9\SHA256SUMS" -Encoding ascii
+          Start-Process python -ArgumentList "-m", "http.server", "8765", "--bind", "127.0.0.1", "--directory", "`"$R`"" -WindowStyle Hidden
+          Get-Process CompCueLink, compcue-link -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep -Seconds 1
+          Remove-Item "$env:SMOKE_LEAGUE_DIR\lockfile" -Force     # League is closed
+          $env:COMPCUE_RELEASES = "http://127.0.0.1:8765"
+          Start-Process "$X\CompCueLink.exe"
+          function Wait-Status($want) { foreach ($i in 1..40) { Start-Sleep -Seconds 1; try { $s = Get-Content "$env:APPDATA\CompCue\status.json" -Raw | ConvertFrom-Json; if ($s.state -eq $want -and (Get-Process -Id $s.pid -ErrorAction SilentlyContinue)) { return $s } } catch { } }; throw "the helper did not reach '$want'" }
+          function Say-Update($s) { $s | Add-Member update "9.9.9" -Force; [IO.File]::WriteAllText("$env:APPDATA\CompCue\status.json", ($s | ConvertTo-Json -Compress)) }
+          $s = Wait-Status "waiting"
+          $tray = (Get-Process CompCueLink).Id; $helper = $s.pid
+          $before = (Get-FileHash "$X\CompCueLink.exe").Hash
+
+          # 1. a download that does not match the release's checksum is not installed
+          Say-Update $s
+          foreach ($i in 1..30) { Start-Sleep -Seconds 1; if (Select-String -Path "$env:APPDATA\CompCue\link.log" -Pattern "does not match" -Quiet) { break } }
+          if (-not (Select-String -Path "$env:APPDATA\CompCue\link.log" -Pattern "does not match" -Quiet)) { Get-Content "$env:APPDATA\CompCue\link.log"; throw "a bad download was not refused" }
+          if ((Get-Process CompCueLink).Id -ne $tray -or -not (Get-Process -Id $helper -ErrorAction SilentlyContinue)) { throw "a refused update disturbed the running copy" }
+          if (Test-Path "$X\CompCueLink.old.exe") { throw "a refused update touched the program files" }
+          "a download with the wrong checksum was refused"
+
+          # 2. the real one goes in: new tray, new helper, working again
+          Get-Process CompCueLink, compcue-link -ErrorAction SilentlyContinue | Stop-Process -Force
+          "$((Get-FileHash "$R\v9.9.9\CompCueLink-windows.zip").Hash.ToLower())  CompCueLink-windows.zip" | Set-Content "$R\v9.9.9\SHA256SUMS" -Encoding ascii
+          Start-Sleep -Seconds 1
+          Start-Process "$X\CompCueLink.exe"
+          $s = Wait-Status "waiting"
+          $tray = (Get-Process CompCueLink).Id; $helper = $s.pid
+          Say-Update $s
+          foreach ($i in 1..60) { Start-Sleep -Seconds 1; if (Select-String -Path "$env:APPDATA\CompCue\link.log" -Pattern "Updated to 9.9.9" -Quiet) { break } }
+          Start-Sleep -Seconds 6
+          Get-Content "$env:APPDATA\CompCue\link.log" | Select-Object -Last 12
+          Get-ChildItem $X | Format-Table Name, Length
+          if (-not (Select-String -Path "$env:APPDATA\CompCue\link.log" -Pattern "Updated to 9.9.9" -Quiet)) { throw "the update did not go in" }
+          $now = @(Get-Process CompCueLink -ErrorAction SilentlyContinue)
+          if ($now.Count -ne 1 -or $now[0].Id -eq $tray) { throw "after the update there should be one new tray app (found $($now.Count))" }
+          $s = Wait-Status "waiting"
+          if ($s.pid -eq $helper) { throw "the helper was not restarted" }
+          if ($s.update) { throw "the new copy still thinks an update is waiting" }
+          if ((Get-FileHash "$X\CompCueLink.exe").Hash -ne $before) { throw "the program file is not the release's" }
+          "updated itself from a release, checked, and came back up"
           Get-Process CompCueLink, compcue-link -ErrorAction SilentlyContinue | Stop-Process -Force
       - uses: actions/upload-artifact@v4
         with: { name: windows, path: "dist/compcue-link-windows-x64.exe\ndist/CompCueLink-windows.zip" }

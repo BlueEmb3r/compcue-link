@@ -54,6 +54,10 @@ static class Paths
     public static readonly Regex Code = new Regex(@"^[A-Z0-9]{3}-[A-Z0-9]{4}$");
 
     public const string Releases = "https://github.com/BlueEmb3r/compcue-link/releases";
+    /// Where an update is downloaded from: this project's releases, fixed. Only a server on this same computer can stand
+    /// in for it (the build's own test does), never another address.
+    public static readonly string ReleaseFiles = Loopback.IsMatch(Environment.GetEnvironmentVariable("COMPCUE_RELEASES") ?? "")
+        ? Environment.GetEnvironmentVariable("COMPCUE_RELEASES") : Releases + "/download";
     public static readonly string Exe = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CompCueLink.exe");
     /// True inside the Microsoft Store package: the Store installs, starts and updates that copy.
     public static readonly bool Packaged = AppDomain.CurrentDomain.BaseDirectory.IndexOf("\\WindowsApps\\", StringComparison.OrdinalIgnoreCase) >= 0;
@@ -146,6 +150,7 @@ sealed class Tray : ApplicationContext
     int restarts;
     DateTime startAgainAt = DateTime.MinValue;
     string state = "starting", code, statusSite, version, update;
+    int statusPid;
     IntPtr lastIcon = IntPtr.Zero;
 
     public Tray(string site, string firstWords)
@@ -268,33 +273,50 @@ sealed class Tray : ApplicationContext
         catch { }
     }
 
-    bool updating;
-    DateTime updateAfter = DateTime.MinValue;
+    // ---- updates for the zip copy
+    // The download and its check run on a background thread; the swap itself runs on the window thread (Tick), so the
+    // icon, the helper and the files are only ever touched from one place. If any step fails nothing is left half done:
+    // the files that were there are put back, the helper starts again, and it is tried again in 30 minutes.
 
-    /// A newer release, only when League is closed or nothing is going on (never during a queue, champ select or game).
+    bool updating;
+    volatile string staged;      // folder with the two checked program files, ready to go in
+    DateTime updateAfter = DateTime.MinValue;
+    static readonly string[] Programs = new string[] { "CompCueLink.exe", "compcue-link.exe" };
+
+    static void Note(string line)
+    {
+        try { File.AppendAllText(Path.Combine(Paths.Dir, "link.log"), DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ") + " [tray] " + line + "\n"); } catch { }
+    }
+
+    /// A newer release, only when League is closed (never during a queue, champ select or game).
     /// The download comes from this project's own GitHub release, is checked against the release's SHA256SUMS, and only
     /// the two program files are taken out of it.
     void MaybeUpdate()
     {
-        if (Paths.Packaged || quitting || updating || update == null || !Paths.Version.IsMatch(update)) return;
-        if (state != "waiting" && state != "pairing" && state != "offline") return;
-        if (DateTime.UtcNow < updateAfter) return;
+        if (Paths.Packaged || quitting || update == null || !Paths.Version.IsMatch(update)) return;
+        // only what the helper this program started says now: a status file left by an earlier copy is not a reason
+        try { if (helper == null || helper.HasExited || statusPid != helper.Id) return; } catch { return; }
+        if (state != "waiting" && state != "pairing" && state != "offline" && state != "update") return;
+        if (staged != null) { string dir = staged; staged = null; Swap(dir); return; }
+        if (updating || DateTime.UtcNow < updateAfter) return;
         updating = true;
         string want = update;
         Thread t = new Thread(delegate()
         {
-            bool ok = false;
-            try { ok = Update(want); } catch { }
+            string got = null;
+            try { got = Fetch(want); } catch (Exception e) { Note("Update to " + want + " not downloaded: " + e.Message); }
+            if (got == null) updateAfter = DateTime.UtcNow.AddMinutes(30);
+            staged = got;
             updating = false;
-            if (!ok) updateAfter = DateTime.UtcNow.AddMinutes(30);
         });
         t.IsBackground = true; t.Start();
     }
 
-    bool Update(string v)
+    /// Download the release's zip, check it, and take the two programs out of it. Returns the folder, or null.
+    static string Fetch(string v)
     {
         ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072; // TLS 1.2
-        string baseUrl = Paths.Releases + "/download/v" + v + "/";
+        string baseUrl = Paths.ReleaseFiles + "/v" + v + "/";
         string tmp = Path.Combine(Path.GetTempPath(), "CompCueLink-update-" + v);
         if (Directory.Exists(tmp)) Directory.Delete(tmp, true);
         Directory.CreateDirectory(tmp);
@@ -307,42 +329,66 @@ sealed class Tray : ApplicationContext
                 string[] p = line.Trim().Split(new char[] { ' ', '*' }, StringSplitOptions.RemoveEmptyEntries);
                 if (p.Length == 2 && p[1] == "CompCueLink-windows.zip" && Regex.IsMatch(p[0], "^[0-9a-fA-F]{64}$")) want = p[0].ToLowerInvariant();
             }
-            if (want == null) return false;
+            if (want == null) { Note("Update to " + v + ": the release lists no Windows zip."); return null; }
             w.DownloadFile(baseUrl + "CompCueLink-windows.zip", zip);
         }
         string got;
         using (SHA256 sha = SHA256.Create()) using (FileStream f = File.OpenRead(zip))
             got = BitConverter.ToString(sha.ComputeHash(f)).Replace("-", "").ToLowerInvariant();
-        if (got != want) return false;
-
-        string dir = AppDomain.CurrentDomain.BaseDirectory;
-        string[] names = new string[] { "CompCueLink.exe", "compcue-link.exe" };
+        if (got != want) { Note("Update to " + v + ": the download does not match the release's checksum. Not installed."); return null; }
         using (ZipArchive z = ZipFile.OpenRead(zip))
         {
-            foreach (string n in names)
+            foreach (string n in Programs)
             {
                 ZipArchiveEntry e = z.GetEntry(n);
-                if (e == null) return false;
+                if (e == null) { Note("Update to " + v + ": " + n + " is not in the zip."); return null; }
                 e.ExtractToFile(Path.Combine(tmp, n), true);
             }
         }
-        // the helper first (stopped), then the tray program: rename what is there, put the new files in
-        quitting = true;
-        try { if (helper != null && !helper.HasExited) { helper.Kill(); helper.WaitForExit(3000); } } catch { }
+        try { File.Delete(zip); } catch { }
+        return tmp;
+    }
+
+    /// Put the checked files in and start the new copy. A running program can be renamed but not overwritten, so what
+    /// is there becomes .old (removed at the next start). On any failure the old files go back.
+    void Swap(string from)
+    {
+        string dir = AppDomain.CurrentDomain.BaseDirectory;
+        List<string> moved = new List<string>();
+        timer.Stop();
+        try { if (helper != null && !helper.HasExited) { helper.Kill(); helper.WaitForExit(5000); } } catch { }
+        if (helper != null) { helper.Dispose(); helper = null; }
         StopStrays();
-        foreach (string n in names)
+        try
         {
-            string live = Path.Combine(dir, n), old = Path.Combine(dir, Path.GetFileNameWithoutExtension(n) + ".old.exe");
-            try { File.Delete(old); } catch { }
-            File.Move(live, old);
-            File.Move(Path.Combine(tmp, n), live);
+            foreach (string n in Programs)
+            {
+                string live = Path.Combine(dir, n), old = Path.Combine(dir, Path.GetFileNameWithoutExtension(n) + ".old.exe");
+                if (File.Exists(old)) File.Delete(old);
+                File.Move(live, old);
+                moved.Add(n);
+                File.Move(Path.Combine(from, n), live);
+            }
+            ProcessStartInfo i = new ProcessStartInfo(Paths.Exe, "--after-update"); i.UseShellExecute = false;
+            Process.Start(i).Dispose();
         }
-        try { Directory.Delete(tmp, true); } catch { }
-        ProcessStartInfo i = new ProcessStartInfo(Paths.Exe, "--after-update"); i.UseShellExecute = false;
-        Process.Start(i);
+        catch (Exception e)
+        {
+            Note("Update not installed (" + e.Message + "). Keeping this version.");
+            foreach (string n in moved)
+            {
+                string live = Path.Combine(dir, n), old = Path.Combine(dir, Path.GetFileNameWithoutExtension(n) + ".old.exe");
+                try { if (File.Exists(live)) File.Delete(live); File.Move(old, live); } catch { }
+            }
+            updateAfter = DateTime.UtcNow.AddMinutes(30);
+            timer.Start(); // Tick starts the helper again
+            return;
+        }
+        Note("Updated to " + update + ". Starting the new version.");
+        try { Directory.Delete(from, true); } catch { }
+        quitting = true;
         icon.Visible = false;
-        Application.Exit();
-        return true;
+        ExitThread();
     }
 
     void ReadStatus()
@@ -353,6 +399,7 @@ sealed class Tray : ApplicationContext
             Dictionary<string, object> j = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(text);
             string s = Str(j, "state"), c = Str(j, "code"), u = Str(j, "update");
             statusSite = Str(j, "site"); version = Str(j, "version");
+            object pid; statusPid = j.TryGetValue("pid", out pid) && pid is int ? (int)pid : 0;
             if (s == null) return;
             if (s == "connected") restarts = 0;
             if (c != null && !Paths.Code.IsMatch(c)) c = null;

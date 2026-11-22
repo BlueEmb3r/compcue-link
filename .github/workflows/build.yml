@@ -149,6 +149,8 @@ jobs:
           Start-Process node -ArgumentList "test/smoke.mjs", "--serve", "`"$F`"" -WindowStyle Hidden
           foreach ($i in 1..40) { if (Test-Path "$F\ports.json") { break }; Start-Sleep -Milliseconds 500 }
           $ports = Get-Content "$F\ports.json" -Raw | ConvertFrom-Json
+          # the helper the tray starts talks to the fake site (it reads COMPCUE_SITE), as a real copy talks to compcue.aflince.com
+          $env:COMPCUE_SITE = $ports.siteUrl
           Start-Process "$X\CompCueLink.exe"
           Start-Sleep -Seconds 4
           if (-not (Get-Process CompCueLink -ErrorAction SilentlyContinue)) { throw "the tray app is not running" }

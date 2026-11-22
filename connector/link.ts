@@ -17,7 +17,7 @@ import { allowedGet, allowedTopic, GAME_PHASE, minimizeGame, LINK_BEAT_MS, LINK_
 import type { ClientReader } from "../server/live/lcu.js";
 import type { LcuEvent } from "../server/live/lcuSocket.js";
 
-export const LINK_VERSION = "0.4.4";
+export const LINK_VERSION = "0.5.0";
 
 /** Reads allowed in every phase (the phase itself, and the session that names the locked teams at game start). */
 const ALWAYS = ["/lol-gameflow/v1/gameflow-phase", "/lol-gameflow/v1/session"];
@@ -125,7 +125,7 @@ function session(token: string, client: NonNullable<Awaited<ReturnType<LinkDeps[
     const site: SiteSocket = d.dial(token, {
       open() {
         opened = true; openedAt = now();
-        send({ t: "hello", v: LINK_PROTOCOL, version: LINK_VERSION, platform: d.platform, beat: LINK_BEAT_MS, ...(client.reader.game ? { game: true } : {}) });
+        send({ t: "hello", v: LINK_PROTOCOL, version: LINK_VERSION, platform: d.platform, beat: LINK_BEAT_MS, ...(client.reader.game ? { game: true } : {}), clash: true });
         tellClient();
         d.log("Connected. You can go back to the CompCue page.");
         d.status?.("connected");

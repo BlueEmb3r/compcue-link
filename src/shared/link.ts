@@ -46,6 +46,12 @@ export const ALLOWED_GETS: RegExp[] = [
   /^\/lol-champion-mastery\/v1\/local-player\/champion-mastery$/,
   new RegExp(`^/lol-match-history/v1/products/lol/(current-summoner|${PUUID})/matches\\?begIndex=0&endIndex=(20|40)$`),
   new RegExp(`^/lol-ranked/v1/ranked-stats/${PUUID}$`),
+  // Clash (Link 0.5.0+): the player's tournament, its bracket, the opponent's roster and one member's Riot ID, so the
+  // opponent the client already shows in the scouting phase can be scouted without typing a name (CLASH_GETS)
+  /^\/lol-clash\/v1\/tournament-summary$/,
+  /^\/lol-clash\/v1\/bracket\/\d{1,12}$/,
+  /^\/lol-clash\/v1\/roster\/\d{1,12}$/,
+  /^\/lol-summoner\/v1\/summoners\/\d{1,20}$/,
 ];
 export const allowedGet = (path: string): boolean => typeof path === "string" && path.length < 200 && ALLOWED_GETS.some((r) => r.test(path));
 
@@ -86,6 +92,17 @@ export function minimize(path: string, body: unknown): unknown {
     const members = (body as { members?: unknown }).members;
     return { members: Array.isArray(members) ? members.map((m) => pick(m, ["puuid"])) : [] };
   }
+  // Clash: only what finds the opponent (ids, the match pairings, a Riot ID); buy-ins, logos and the rest stay on the computer
+  if (p === "/lol-clash/v1/tournament-summary") return Array.isArray(body) ? body.slice(0, 8).map((x) => pick(x, ["tournamentId", "bracketId", "rosterId", "state"])) : [];
+  if (p.startsWith("/lol-clash/v1/bracket/")) {
+    const matches = (body as { matches?: unknown }).matches;
+    return { matches: Array.isArray(matches) ? matches.slice(0, 128).map((m) => pick(m, ["id", "round", "status", "rosterId1", "rosterId2", "winnerId"])) : [] };
+  }
+  if (p.startsWith("/lol-clash/v1/roster/")) {
+    const members = (body as { members?: unknown }).members;
+    return { ...pick(body, ["id", "name", "shortName"]), members: Array.isArray(members) ? members.slice(0, 10).map((m) => pick(m, ["summonerId", "position"])) : [] };
+  }
+  if (p.startsWith("/lol-summoner/v1/summoners/")) return pick(body, ["gameName", "tagLine", "puuid"]);
   if (p === "/lol-gameflow/v1/session") {
     const gd = (body as { gameData?: { queue?: unknown; teamOne?: unknown; teamTwo?: unknown } }).gameData;
     const team = (t: unknown) => (Array.isArray(t) ? t.map((x) => pick(x, PLAYER_KEYS)) : []);
@@ -127,7 +144,9 @@ export function minimizeGame(body: unknown): unknown {
 export const fromLink = z.discriminatedUnion("t", [
   z.object({ t: z.literal("hello"), v: z.number().int(), version: z.string().max(40), platform: z.string().max(20), beat: z.number().int().min(1000).max(600_000).optional(),
     // game: this helper can read the scoreboard during a game (the `game` message)
-    game: z.boolean().optional() }),
+    game: z.boolean().optional(),
+    // clash: this helper can read the Clash bracket (the four Clash reads on the allowlist, Link 0.5.0+)
+    clash: z.boolean().optional() }),
   // events: whether the client's event socket is up on the helper's side (false: the site falls back to reading)
   z.object({ t: z.literal("client"), up: z.boolean(), via: z.enum(["lockfile", "process"]).optional(), events: z.boolean().optional() }),
   z.object({ t: z.literal("ping") }),

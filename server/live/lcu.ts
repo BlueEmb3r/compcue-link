@@ -48,11 +48,14 @@ export interface ClientReader {
    * that cannot see the game (a CompCue Link helper today, which is quiet during a game) does not have it.
    */
   game?(): Promise<unknown | null>;
+  /** Whether the Clash bracket can be read (the local client: always; a Link helper: from 0.5.0). */
+  readonly clash?: boolean;
 }
 
 export class Lcu implements ClientReader {
   constructor(readonly creds: ClientCreds) {}
   get via() { return this.creds.via; }
+  readonly clash = true;
   get<T>(path: string): Promise<T> { return getJson<T>(this.creds.port, path, this.creds.password); }
   /** The game client's own local API (port 2999, loopback, no password): one read, the player list. */
   game(): Promise<unknown | null> { return getJson<unknown>(GAME_PORT, "/liveclientdata/playerlist", undefined, 1500).catch(() => null); }

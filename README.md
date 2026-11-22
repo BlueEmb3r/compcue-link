@@ -13,7 +13,8 @@ draft coach can give you pick and ban options live. This repository is everythin
 
 - **It only reads.** The only calls it can make to the client are GET requests on the paths in
   [`src/shared/link.ts`](src/shared/link.ts) (`ALLOWED_GETS`): game phase, lobby, champ select, your summoner,
-  your champions and mastery, recent games and ranked stats of players the client shows you. There is no
+  your champions and mastery, recent games and ranked stats of players the client shows you, and in Clash your
+  bracket and the roster you face next (the same opponent the client shows you in the scouting phase). There is no
   message that picks, bans, accepts a queue or clicks anything.
 - **It listens on nothing.** No port is opened on your computer.
 - **The client's port and password never leave your computer.**

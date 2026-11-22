@@ -156,16 +156,16 @@ jobs:
           if (-not (Get-Process CompCueLink -ErrorAction SilentlyContinue)) { throw "the tray app is not running" }
           if (-not (Test-Path "HKCU:\Software\Classes\compcue-link\shell\open\command")) { throw "the button is not registered" }
           if (-not (Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run").CompCueLink) { throw "it does not start with Windows" }
-          Start-Process "compcue-link:setup?key=$($ports.key)&site=$([uri]::EscapeDataString($ports.siteUrl))"
-          $seen = $null
+          # it pairs with the code (the fake site confirms it by itself; the button is the Store test's), then connects
+          $seen = $null; $st = $null
           foreach ($i in 1..60) {
             Start-Sleep -Seconds 1
-            try { $seen = Get-Content "$F\seen.json" -Raw | ConvertFrom-Json } catch { continue }
-            if ($seen.claimed -eq 1 -and $seen.problems.Count -eq 0) { break }
+            try { $seen = Get-Content "$F\seen.json" -Raw | ConvertFrom-Json; $st = Get-Content "$env:APPDATA\CompCue\status.json" -Raw | ConvertFrom-Json } catch { continue }
+            if ($st.state -eq "connected" -and $seen.problems.Count -eq 0) { break }
           }
           Get-Process CompCueLink, compcue-link -ErrorAction SilentlyContinue | Format-Table Name, Id, Path
           if (Test-Path "$env:APPDATA\CompCue\link.log") { Get-Content "$env:APPDATA\CompCue\link.log" }
-          if (-not $seen -or $seen.claimed -ne 1) { throw "the zip copy did not connect with the one-time key" }
+          if (-not $st -or $st.state -ne "connected") { throw "the zip copy did not connect" }
           if ($seen.problems.Count -ne 0) { throw "these did not hold: $($seen.problems -join '; ')" }
           if ($seen.writes -ne 0) { throw "the helper wrote to the client" }
           Get-Process CompCueLink, compcue-link -ErrorAction SilentlyContinue | Stop-Process -Force

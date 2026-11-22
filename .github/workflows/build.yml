@@ -190,6 +190,8 @@ jobs:
           $bad = "0" * 64
           "$bad  CompCueLink.exe" | Set-Content "$R\v9.9.9\SHA256SUMS" -Encoding ascii
           Start-Process python -ArgumentList "-m", "http.server", "8765", "--bind", "127.0.0.1", "--directory", "`"$R`"" -WindowStyle Hidden
+          # wait until the stand-in release answers: the tray asks once and then waits before asking again
+          foreach ($i in 1..40) { try { Invoke-WebRequest "http://127.0.0.1:8765/v9.9.9/SHA256SUMS" -UseBasicParsing | Out-Null; break } catch { Start-Sleep -Milliseconds 500 } }
           Running | Stop-Process -Force
           Start-Sleep -Seconds 1
           Remove-Item "$env:SMOKE_LEAGUE_DIR\lockfile" -Force     # League is closed

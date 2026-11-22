@@ -57,6 +57,15 @@ pub fn allowed_get(path: &str) -> bool {
     if let Some(who) = path.strip_prefix("/lol-ranked/v1/ranked-stats/") {
         return puuid(who);
     }
+    // Clash (0.5.0): the player's tournament, its bracket, the opponent's roster and one member's Riot ID
+    if path == "/lol-clash/v1/tournament-summary" {
+        return true;
+    }
+    for (prefix, max) in [("/lol-clash/v1/bracket/", 12), ("/lol-clash/v1/roster/", 12), ("/lol-summoner/v1/summoners/", 20)] {
+        if let Some(id) = path.strip_prefix(prefix) {
+            return !id.is_empty() && id.len() <= max && id.bytes().all(|b| b.is_ascii_digit());
+        }
+    }
     false
 }
 
@@ -171,6 +180,30 @@ pub fn minimize(path: &str, body: &Value) -> Value {
         let mut out = Map::new();
         out.insert("members".into(), Value::Array(members));
         return Value::Object(out);
+    }
+    // Clash: only what finds the opponent (ids, the match pairings, a Riot ID); the rest stays on the computer
+    let list = |v: Option<&Value>, max: usize, keys: &[&str]| match v {
+        Some(Value::Array(a)) => Value::Array(a.iter().take(max).map(|x| pick(Some(x), keys)).collect()),
+        _ => Value::Array(Vec::new()),
+    };
+    if p == "/lol-clash/v1/tournament-summary" {
+        return list(Some(body), 8, &["tournamentId", "bracketId", "rosterId", "state"]);
+    }
+    if p.starts_with("/lol-clash/v1/bracket/") {
+        let mut out = Map::new();
+        out.insert("matches".into(), list(body.get("matches"), 128, &["id", "round", "status", "rosterId1", "rosterId2", "winnerId"]));
+        return Value::Object(out);
+    }
+    if p.starts_with("/lol-clash/v1/roster/") {
+        let mut out = match pick(Some(body), &["id", "name", "shortName"]) {
+            Value::Object(m) => m,
+            _ => Map::new(),
+        };
+        out.insert("members".into(), list(body.get("members"), 10, &["summonerId", "position"]));
+        return Value::Object(out);
+    }
+    if p.starts_with("/lol-summoner/v1/summoners/") {
+        return pick(Some(body), &["gameName", "tagLine", "puuid"]);
     }
     if p == P_FLOW {
         let gd = body.get("gameData");

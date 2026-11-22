@@ -163,7 +163,7 @@ async fn session(token: &str, creds: Creds, ctx: &Arc<Ctx>) -> SessionEnd {
         m.to_string()
     };
 
-    let hello = json!({ "t": "hello", "v": contract::LINK_PROTOCOL, "version": VERSION, "platform": crate::PLATFORM, "beat": contract::LINK_BEAT_MS, "game": true }).to_string();
+    let hello = json!({ "t": "hello", "v": contract::LINK_PROTOCOL, "version": VERSION, "platform": crate::PLATFORM, "beat": contract::LINK_BEAT_MS, "game": true, "clash": true }).to_string();
     // everything that ends the session leaves through `end`; a failed send means the socket is gone
     macro_rules! send {
         ($text:expr) => {

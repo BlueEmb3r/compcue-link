@@ -55,7 +55,7 @@ jobs:
           $b = [IO.File]::ReadAllBytes("$PWD\dist\compcue-link-windows-x64-nowindow.exe")
           $pe = [BitConverter]::ToInt32($b, 0x3C)
           $subsystem = [BitConverter]::ToUInt16($b, $pe + 24 + 68)
-          if ($subsystem -ne 2) { throw "subsystem $subsystem: expected 2 (Windows GUI, no console)" }
+          if ($subsystem -ne 2) { throw "subsystem ${subsystem}: expected 2 (Windows GUI, no console)" }
           "subsystem $subsystem (no console)"
       - name: Build the tray app and the Microsoft Store package
         shell: powershell

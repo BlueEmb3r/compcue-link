@@ -38,10 +38,18 @@ compcue-link --site <url>    # another CompCue server (self-hosting, development
 compcue-link --version
 ```
 
-On Windows the Store app runs with no console window: a tray icon next to the clock shows the state, opens CompCue, shows
-the log and quits, and it starts with Windows (switch it off in Settings, Apps, Startup). The helper inside it is built
-without a console (`--windows-hide-console`) and writes to `%APPDATA%\CompCue\link.log`. The standalone
-`compcue-link-windows-x64.exe` is the command-line build and does open a console.
+On Windows there are two copies, and neither opens a console window. A tray icon next to the clock shows the state, opens
+CompCue, shows the log and quits. The helper inside is built without a console (`--windows-hide-console`) and writes to
+`%APPDATA%\CompCue\link.log`.
+
+- **Microsoft Store:** the Store installs it, starts it with Windows and updates it.
+- **`CompCueLink-windows.zip` (release page):** extract the whole folder anywhere you can write and open
+  `CompCueLink.exe`. It starts with Windows (the tray menu switches that off), registers the site's "Connect this PC"
+  button for your user, and updates itself from the GitHub release when League is closed (the download is checked
+  against the release's `SHA256SUMS`; only the two program files are taken from it). The file is not code-signed, so
+  Windows SmartScreen asks once: More info, Run anyway.
+
+`compcue-link-windows-x64.exe` is the command-line build (for `--version`, `--status`, scripts) and does open a console.
 
 The token is stored in `%APPDATA%\CompCue\link.json` (Windows) or `~/Library/Application Support/CompCue/link.json`
 (Mac). You can also remove this computer on the site under "Connected computers".

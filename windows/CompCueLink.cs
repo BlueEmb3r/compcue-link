@@ -8,13 +8,22 @@
 // that address. It asks the player first, then lets the helper trade the key for this computer's token.
 //
 // Plain C# 5 on the .NET Framework every Windows 10 and 11 already has, so the package carries no runtime:
-//   csc /target:winexe /out:CompCueLink.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll CompCueLink.cs
+//   csc /target:winexe /out:CompCueLink.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.IO.Compression.FileSystem.dll /r:System.IO.Compression.dll CompCueLink.cs
+//
+// Two ways to get it: the Microsoft Store package (the Store updates it, Windows starts it, the site's button reaches
+// it through the package) and CompCueLink-windows.zip from the GitHub release (extract it anywhere you can write).
+// The zip copy does what the package does for itself: it registers the compcue-link: button for this user, starts with
+// Windows (the menu switches it off), and updates itself from the release when League is closed.
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Globalization;
+using System.IO.Compression;
+using System.Net;
+using System.Security.Cryptography;
+using Microsoft.Win32;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -44,6 +53,12 @@ static class Paths
     public static readonly Regex Key = new Regex(@"^[A-Za-z0-9_-]{16,80}$");
     public static readonly Regex Code = new Regex(@"^[A-Z0-9]{3}-[A-Z0-9]{4}$");
 
+    public const string Releases = "https://github.com/BlueEmb3r/compcue-link/releases";
+    public static readonly string Exe = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CompCueLink.exe");
+    /// True inside the Microsoft Store package: the Store installs, starts and updates that copy.
+    public static readonly bool Packaged = AppDomain.CurrentDomain.BaseDirectory.IndexOf("\\WindowsApps\\", StringComparison.OrdinalIgnoreCase) >= 0;
+    public static readonly Regex Version = new Regex(@"^\d+\.\d+\.\d+$");
+
     public static bool SiteOk(string s) { return s != null && (s.StartsWith("https://") || Loopback.IsMatch(s)); }
 }
 
@@ -62,18 +77,30 @@ static class Program
             if (k.Success && Paths.Key.IsMatch(k.Groups[1].Value)) key = k.Groups[1].Value;
             if (s.Success) { string v = Uri.UnescapeDataString(s.Groups[1].Value); if (Paths.Loopback.IsMatch(v)) site = v; }
         }
+        if (!File.Exists(Paths.Helper))
+        {
+            // started from inside the zip (Windows opens it as a folder): the helper is not next to it
+            MessageBox.Show(Words.T("Extract the whole zip first (right-click, Extract All), then open CompCueLink.exe from the new folder.",
+                                    "Primero extrae todo el zip (clic derecho, Extraer todo) y luego abre CompCueLink.exe desde la carpeta nueva."),
+                "CompCue Link", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return 1;
+        }
         string said = key != null ? Connect(key, site) : null;
 
-        bool first;
-        using (Mutex one = new Mutex(true, "Local\\CompCueLink.Tray", out first))
+        // a copy that was just replaced by an update waits for the old one to let go of the icon
+        bool afterUpdate = Array.IndexOf(args, "--after-update") >= 0;
+        using (Mutex one = new Mutex(false, "Local\\CompCueLink.Tray"))
         {
-            if (!first)
+            bool got;
+            try { got = one.WaitOne(afterUpdate ? 15000 : 0); } catch (AbandonedMutexException) { got = true; }
+            if (!got)
             {
                 // the copy that is already running shows the result in its own menu
                 if (said != null) MessageBox.Show(said, "CompCue Link", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return 0;
             }
             Application.Run(new Tray(site, said));
+            try { one.ReleaseMutex(); } catch { }
         }
         return 0;
     }
@@ -134,6 +161,7 @@ sealed class Tray : ApplicationContext
         };
         menu.Opening += delegate { ReadStatus(); Rebuild(); };
         StopStrays();
+        if (!Paths.Packaged) { CleanOld(); RegisterProtocol(); FirstRunStartup(); }
         Render();
         StartHelper();
         timer.Interval = 2000;
@@ -184,6 +212,136 @@ sealed class Tray : ApplicationContext
         }
         if (helper == null && state != "broken" && DateTime.UtcNow >= startAgainAt) StartHelper();
         ReadStatus();
+        MaybeUpdate();
+    }
+
+    // ---- the zip copy: what the Store package gets from Windows and the Store, done here
+
+    const string RunKey = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+
+    /// The files an update replaced are renamed to .old (a running program can be renamed, not overwritten); remove them.
+    static void CleanOld()
+    {
+        foreach (string f in new string[] { "CompCueLink.old.exe", "compcue-link.old.exe" })
+            try { File.Delete(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, f)); } catch { }
+    }
+
+    /// The site's "Connect this PC" button opens compcue-link:...; for this user it starts this program (the package does it for itself).
+    static void RegisterProtocol()
+    {
+        try
+        {
+            using (RegistryKey k = Registry.CurrentUser.CreateSubKey("Software\\Classes\\compcue-link"))
+            {
+                k.SetValue("", "URL:CompCue Link"); k.SetValue("URL Protocol", "");
+                using (RegistryKey c = k.CreateSubKey("shell\\open\\command")) c.SetValue("", "\"" + Paths.Exe + "\" \"%1\"");
+            }
+        }
+        catch { }
+    }
+
+    static bool StartsWithWindows()
+    {
+        try { using (RegistryKey k = Registry.CurrentUser.OpenSubKey(RunKey)) return k != null && k.GetValue("CompCueLink") != null; } catch { return false; }
+    }
+    static void SetStartsWithWindows(bool on)
+    {
+        try
+        {
+            using (RegistryKey k = Registry.CurrentUser.CreateSubKey(RunKey))
+            {
+                if (on) k.SetValue("CompCueLink", "\"" + Paths.Exe + "\""); else k.DeleteValue("CompCueLink", false);
+            }
+        }
+        catch { }
+    }
+    /// The first time it runs it starts with Windows (the menu switches it off); the choice is remembered after that.
+    static void FirstRunStartup()
+    {
+        string mark = Path.Combine(Paths.Dir, "startup-set");
+        try
+        {
+            if (!File.Exists(mark)) { File.WriteAllText(mark, ""); SetStartsWithWindows(true); }
+            else if (StartsWithWindows()) SetStartsWithWindows(true); // keeps the path right if the folder moved
+        }
+        catch { }
+    }
+
+    bool updating;
+    DateTime updateAfter = DateTime.MinValue;
+
+    /// A newer release, only when League is closed or nothing is going on (never during a queue, champ select or game).
+    /// The download comes from this project's own GitHub release, is checked against the release's SHA256SUMS, and only
+    /// the two program files are taken out of it.
+    void MaybeUpdate()
+    {
+        if (Paths.Packaged || quitting || updating || update == null || !Paths.Version.IsMatch(update)) return;
+        if (state != "waiting" && state != "pairing" && state != "offline") return;
+        if (DateTime.UtcNow < updateAfter) return;
+        updating = true;
+        string want = update;
+        Thread t = new Thread(delegate()
+        {
+            bool ok = false;
+            try { ok = Update(want); } catch { }
+            updating = false;
+            if (!ok) updateAfter = DateTime.UtcNow.AddMinutes(30);
+        });
+        t.IsBackground = true; t.Start();
+    }
+
+    bool Update(string v)
+    {
+        ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072; // TLS 1.2
+        string baseUrl = Paths.Releases + "/download/v" + v + "/";
+        string tmp = Path.Combine(Path.GetTempPath(), "CompCueLink-update-" + v);
+        if (Directory.Exists(tmp)) Directory.Delete(tmp, true);
+        Directory.CreateDirectory(tmp);
+        string zip = Path.Combine(tmp, "CompCueLink-windows.zip");
+        string want = null;
+        using (WebClient w = new WebClient())
+        {
+            foreach (string line in w.DownloadString(baseUrl + "SHA256SUMS").Split('\n'))
+            {
+                string[] p = line.Trim().Split(new char[] { ' ', '*' }, StringSplitOptions.RemoveEmptyEntries);
+                if (p.Length == 2 && p[1] == "CompCueLink-windows.zip" && Regex.IsMatch(p[0], "^[0-9a-fA-F]{64}$")) want = p[0].ToLowerInvariant();
+            }
+            if (want == null) return false;
+            w.DownloadFile(baseUrl + "CompCueLink-windows.zip", zip);
+        }
+        string got;
+        using (SHA256 sha = SHA256.Create()) using (FileStream f = File.OpenRead(zip))
+            got = BitConverter.ToString(sha.ComputeHash(f)).Replace("-", "").ToLowerInvariant();
+        if (got != want) return false;
+
+        string dir = AppDomain.CurrentDomain.BaseDirectory;
+        string[] names = new string[] { "CompCueLink.exe", "compcue-link.exe" };
+        using (ZipArchive z = ZipFile.OpenRead(zip))
+        {
+            foreach (string n in names)
+            {
+                ZipArchiveEntry e = z.GetEntry(n);
+                if (e == null) return false;
+                e.ExtractToFile(Path.Combine(tmp, n), true);
+            }
+        }
+        // the helper first (stopped), then the tray program: rename what is there, put the new files in
+        quitting = true;
+        try { if (helper != null && !helper.HasExited) { helper.Kill(); helper.WaitForExit(3000); } } catch { }
+        StopStrays();
+        foreach (string n in names)
+        {
+            string live = Path.Combine(dir, n), old = Path.Combine(dir, Path.GetFileNameWithoutExtension(n) + ".old.exe");
+            try { File.Delete(old); } catch { }
+            File.Move(live, old);
+            File.Move(Path.Combine(tmp, n), live);
+        }
+        try { Directory.Delete(tmp, true); } catch { }
+        ProcessStartInfo i = new ProcessStartInfo(Paths.Exe, "--after-update"); i.UseShellExecute = false;
+        Process.Start(i);
+        icon.Visible = false;
+        Application.Exit();
+        return true;
     }
 
     void ReadStatus()
@@ -233,7 +391,8 @@ sealed class Tray : ApplicationContext
             case "waiting": return Words.T("Ready. Waiting for League to open", "Listo. Esperando a que abras League");
             case "pairing": return code != null ? Words.T("Confirm code " + code + " in your browser", "Confirma el código " + code + " en tu navegador") : Words.T("Not connected to your account yet", "Aún no está conectada a tu cuenta");
             case "offline": return Words.T("Can't reach CompCue. Trying again", "No se puede llegar a CompCue. Intentando de nuevo");
-            case "update": return Words.T("This version is too old. Update it in the Microsoft Store", "Esta versión es muy vieja. Actualízala en Microsoft Store");
+            case "update": return Paths.Packaged ? Words.T("This version is too old. Update it in the Microsoft Store", "Esta versión es muy vieja. Actualízala en Microsoft Store")
+                : Words.T("This version is too old. Updating…", "Esta versión es muy vieja. Actualizando…");
             case "broken": return Words.T("CompCue Link could not start", "CompCue Link no pudo iniciar");
             default: return Words.T("Starting…", "Iniciando…");
         }
@@ -273,10 +432,18 @@ sealed class Tray : ApplicationContext
         if (state == "pairing") menu.Items.Add(Item(Words.T("Connect this PC…", "Conectar esta PC…"), delegate { OpenPair(); }));
         menu.Items.Add(Item(Words.T("Open CompCue", "Abrir CompCue"), delegate { Open(Site() + "/#/live"); }));
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(Item(Words.T("Start with Windows…", "Iniciar con Windows…"), delegate { Open("ms-settings:startupapps"); }));
+        if (Paths.Packaged) menu.Items.Add(Item(Words.T("Start with Windows…", "Iniciar con Windows…"), delegate { Open("ms-settings:startupapps"); }));
+        else
+        {
+            ToolStripMenuItem on = Item(Words.T("Start with Windows", "Iniciar con Windows"), delegate { SetStartsWithWindows(!StartsWithWindows()); });
+            on.Checked = StartsWithWindows();
+            menu.Items.Add(on);
+        }
         menu.Items.Add(Item(Words.T("Show log", "Ver registro"), delegate { ShowLog(); }));
-        if (update != null)
+        if (update != null && Paths.Packaged)
             menu.Items.Add(Item(Words.T("Version " + update + " is out: get it in Microsoft Store", "Versión " + update + " disponible: obtenla en Microsoft Store"), delegate { Open("ms-windows-store://pdp/?productid=9P94STX43TBX"); }));
+        else if (update != null)
+            menu.Items.Add(Item(Words.T("Version " + update + " is out: installs when League is closed", "Versión " + update + " disponible: se instala cuando League esté cerrado"), delegate { Open(Paths.Releases + "/latest"); }));
         if (version != null)
         {
             ToolStripMenuItem v = new ToolStripMenuItem(Words.T("Version ", "Versión ") + version); v.Enabled = false; menu.Items.Add(v);

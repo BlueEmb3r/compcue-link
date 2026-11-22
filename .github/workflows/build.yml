@@ -66,8 +66,13 @@ jobs:
           $version = "$([int]$v[0] + 1).$($v[1]).$($v[2]).0"
           New-Item -ItemType Directory -Force pkg\assets | Out-Null
           Copy-Item dist\compcue-link-windows-x64-nowindow.exe pkg\compcue-link.exe
-          & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /optimize /target:winexe /out:pkg\CompCueLink.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll windows\CompCueLink.cs
+          & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /optimize /target:winexe /out:pkg\CompCueLink.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll windows\CompCueLink.cs
           if ($LASTEXITCODE) { throw "the tray app did not compile" }
+          # the same two programs as a zip for people who do not use the Store (extract, run; it updates itself)
+          New-Item -ItemType Directory -Force zip\CompCueLink | Out-Null
+          Copy-Item pkg\CompCueLink.exe, pkg\compcue-link.exe zip\CompCueLink\
+          "Extract this whole folder, then open CompCueLink.exe. A tray icon next to the clock shows the state." | Set-Content zip\CompCueLink\README.txt
+          Compress-Archive -Path zip\CompCueLink\* -DestinationPath dist\CompCueLink-windows.zip -Force
           Copy-Item windows\assets\*.png pkg\assets\
           $manifest = [IO.File]::ReadAllText("$PWD\windows\AppxManifest.xml").Replace('__VERSION__', $version)
           [IO.File]::WriteAllText("$PWD\pkg\AppxManifest.xml", $manifest, (New-Object Text.UTF8Encoding $false))
@@ -130,8 +135,40 @@ jobs:
           if (Get-Process CompCueLink, compcue-link -ErrorAction SilentlyContinue) { throw "still running after uninstall" }
           if (Get-AppxPackage AndrsLince.CompCueLink) { throw "still installed" }
           if (Test-Path "$env:LOCALAPPDATA\Packages\$($pkg.PackageFamilyName)") { "note: the package's data folder is still there" } else { "uninstall left nothing" }
+      - name: Run the zip copy: extract, open, connect with the site's button, switch itself off
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $X = "$env:RUNNER_TEMP\zipcopy"; Expand-Archive dist\CompCueLink-windows.zip $X -Force
+          foreach ($f in "CompCueLink.exe", "compcue-link.exe") { if (-not (Test-Path "$X\$f")) { throw "$f is not in the zip" } }
+          Remove-Item "$env:APPDATA\CompCue" -Recurse -Force -ErrorAction SilentlyContinue
+          $F = "$env:RUNNER_TEMP\fakes2"
+          $env:SMOKE_LEAGUE_DIR = "C:\Riot Games\League of Legends"
+          New-Item -ItemType Directory -Force $env:SMOKE_LEAGUE_DIR | Out-Null
+          $env:PATH += ";C:\Program Files\Git\usr\bin"
+          Start-Process node -ArgumentList "test/smoke.mjs", "--serve", "`"$F`"" -WindowStyle Hidden
+          foreach ($i in 1..40) { if (Test-Path "$F\ports.json") { break }; Start-Sleep -Milliseconds 500 }
+          $ports = Get-Content "$F\ports.json" -Raw | ConvertFrom-Json
+          Start-Process "$X\CompCueLink.exe"
+          Start-Sleep -Seconds 4
+          if (-not (Get-Process CompCueLink -ErrorAction SilentlyContinue)) { throw "the tray app is not running" }
+          if (-not (Test-Path "HKCU:\Software\Classes\compcue-link\shell\open\command")) { throw "the button is not registered" }
+          if (-not (Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run").CompCueLink) { throw "it does not start with Windows" }
+          Start-Process "compcue-link:setup?key=$($ports.key)&site=$([uri]::EscapeDataString($ports.siteUrl))"
+          $seen = $null
+          foreach ($i in 1..60) {
+            Start-Sleep -Seconds 1
+            try { $seen = Get-Content "$F\seen.json" -Raw | ConvertFrom-Json } catch { continue }
+            if ($seen.claimed -eq 1 -and $seen.problems.Count -eq 0) { break }
+          }
+          Get-Process CompCueLink, compcue-link -ErrorAction SilentlyContinue | Format-Table Name, Id, Path
+          if (Test-Path "$env:APPDATA\CompCue\link.log") { Get-Content "$env:APPDATA\CompCue\link.log" }
+          if (-not $seen -or $seen.claimed -ne 1) { throw "the zip copy did not connect with the one-time key" }
+          if ($seen.problems.Count -ne 0) { throw "these did not hold: $($seen.problems -join '; ')" }
+          if ($seen.writes -ne 0) { throw "the helper wrote to the client" }
+          Get-Process CompCueLink, compcue-link -ErrorAction SilentlyContinue | Stop-Process -Force
       - uses: actions/upload-artifact@v4
-        with: { name: windows, path: dist/compcue-link-windows-x64.exe }
+        with: { name: windows, path: "dist/compcue-link-windows-x64.exe\ndist/CompCueLink-windows.zip" }
       # the file to upload in Partner Center (unsigned on purpose: the Store signs it)
       - uses: actions/upload-artifact@v4
         with: { name: windows-store, path: dist/CompCueLink-store.msix }
@@ -239,7 +276,7 @@ jobs:
           case "$REF" in refs/tags/*) test "v$VERSION" = "$TAG" || { echo "tag $TAG does not match version $VERSION"; exit 1; } ;; esac
           cp mac/install.sh mac/uninstall.sh dist/
           echo "{\"version\":\"$VERSION\"}" > dist/version.json
-          cd dist && sha256sum CompCueLink-mac-*.zip compcue-link-windows-x64.exe install.sh uninstall.sh > SHA256SUMS && ls -la
+          cd dist && sha256sum CompCueLink-mac-*.zip compcue-link-windows-x64.exe CompCueLink-windows.zip install.sh uninstall.sh > SHA256SUMS && ls -la
         env: { TAG: "${{ github.ref_name }}", REF: "${{ github.ref }}" }
       - run: |
           V="v$(node -p "require('./package.json').version")"
